@@ -1,5 +1,3 @@
-from collections import Counter
-
 import networkx as nx
 import obonet
 import matplotlib.pyplot as plt
@@ -15,7 +13,7 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
     handle = open(in_file)
     go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
     all = [["ACC", "ID", "GO_IDS", "EVIDENCES", "ORGANISM", "TAXONOMY", "DATA CLASS",
-            "CREATED", "SEQUENCE UPDATE", "ANNOTATION UPDATE", "SEQUENCE"]]
+            "CREATED", "SEQUENCE UPDATE", "ANNOTATION UPDATE", "SEQUENCE", "SEQUENCE LENGTH"]]
     for record in SwissProt.parse(handle):
         # accessions, annotation_update, comments, created, cross_references, data_class, description
         # entry_name, features, gene_name, host_organism, host_taxonomy_id, keywords, molecule_type
@@ -33,6 +31,7 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
         sequence_update = record.sequence_update[0]
         annotation_update = record.annotation_update[0]
         sequence = record.sequence
+        sequence_length = len(record.sequence)
         go_terms = []
         evidences = []
         for ref in cross_refs:
@@ -54,30 +53,23 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
 
             all.append([primary_accession, entry_name, go_terms, evidences,
                         organism, taxonomy, data_class, created,
-                        sequence_update, annotation_update, sequence])
+                        sequence_update, annotation_update, sequence, sequence_length])
 
     df = pd.DataFrame(all[1:], columns=all[0])
 
+    df = df.loc[(df["SEQUENCE LENGTH"] > 50) & (df["SEQUENCE LENGTH"] <= 5120)]
     if save:
         df.to_csv('{}.csv'.format(out_file), sep='\t', index=False)
     else:
         return df
 
 
-read_uniprot(CONSTANTS.ROOT_DIR + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
-exit()
+# read_uniprot(CONSTANTS.ROOT_DIR + "uniprot/uniprot_sprot.dat", save=True, out_file=CONSTANTS.ROOT_DIR +
+# "training_data")
+
 
 def statistics_go_terms():
-    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
-    protein = pd.read_csv("uniprot.csv", sep="\t", index_col=False)
 
-    go_terms = {term: set() for term in go_graph.nodes()}
-
-    for index, row in protein[["ACC", "GO_IDS"]].iterrows():
-        if isinstance(row[1], str):
-            tmp = row[1].split("\t")
-            for term in tmp:
-                go_terms[term].add(row[0])
 
     for ont in CONSTANTS.FUNC_DICT:
         ont_terms = nx.ancestors(go_graph, Constants.FUNC_DICT[ont]).union(set([Constants.FUNC_DICT[ont]]))
@@ -152,8 +144,10 @@ def statistics_go_terms():
     #     a = nx.descendants(go_graph, node).union(set([node]))
     #     # print(node, assert len(a), len(b))
 
+
 statistics_go_terms()
 exit()
+
 
 def statistics_proteins():
     protein = pd.read_csv("uniprot", sep="\t", index_col=False)
