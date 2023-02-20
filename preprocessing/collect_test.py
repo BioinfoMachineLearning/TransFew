@@ -10,7 +10,7 @@ from Bio.Seq import Seq
 from Bio import SeqIO, SwissProt
 from Bio.SeqRecord import SeqRecord
 
-import Constants
+import CONSTANTS
 from preprocessing.utils import get_sequence_from_pdb, pickle_save, pickle_load, create_seqrecord, fasta_to_dictionary
 
 exp_evidence_codes = set([
@@ -229,7 +229,7 @@ def tmp(in_file):
         some_dict[primary_accession] = sequence
     return some_dict
 
-some_dic = tmp(Constants.ROOT + "timebased/uniprot_sprot.dat")
+some_dic = tmp(Constants.ROOT + "uniprot/uniprot_sprot.dat")
 
 data = pd.read_csv(Constants.ROOT + "timebased/test_data", sep="\t")
 
@@ -237,6 +237,8 @@ data['SEQUENCE'] = data['ACC'].map(some_dic)
 data['SEQUENCE LENGTH'] = data.apply(lambda row: sequence_length(row), axis=1)
 
 data.to_csv(Constants.ROOT + "timebased/test_data_new", sep="\t")
+
+print(data)
 exit()
 #
 # print("Adding Ontology")

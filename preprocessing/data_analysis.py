@@ -7,13 +7,13 @@ import pandas as pd
 from Bio import SwissProt
 import networkx
 import obonet
-import Constants
-from Constants import exp_evidence_codes
+import CONSTANTS
+from CONSTANTS import exp_evidence_codes
 
 
 def read_uniprot(in_file, save=False, out_file="uniprot"):
     handle = open(in_file)
-    go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
     all = [["ACC", "ID", "GO_IDS", "EVIDENCES", "ORGANISM", "TAXONOMY", "DATA CLASS",
             "CREATED", "SEQUENCE UPDATE", "ANNOTATION UPDATE", "SEQUENCE"]]
     for record in SwissProt.parse(handle):
@@ -48,12 +48,13 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
                     except networkx.exception.NetworkXError:
                         pass
 
-        go_terms = '\t'.join(map(str, go_terms))
-        evidences = '\t'.join(map(str, evidences))
+        if len(go_terms) > 0:
+            go_terms = '\t'.join(map(str, go_terms))
+            evidences = '\t'.join(map(str, evidences))
 
-        all.append([primary_accession, entry_name, go_terms, evidences,
-                    organism, taxonomy, data_class, created,
-                    sequence_update, annotation_update, sequence])
+            all.append([primary_accession, entry_name, go_terms, evidences,
+                        organism, taxonomy, data_class, created,
+                        sequence_update, annotation_update, sequence])
 
     df = pd.DataFrame(all[1:], columns=all[0])
 
@@ -63,12 +64,11 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
         return df
 
 
-# read_uniprot(Constants.ROOT + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
-#
-# exit()
+read_uniprot(CONSTANTS.ROOT_DIR + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
+exit()
 
 def statistics_go_terms():
-    go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
     protein = pd.read_csv("uniprot.csv", sep="\t", index_col=False)
 
     go_terms = {term: set() for term in go_graph.nodes()}
@@ -79,17 +79,15 @@ def statistics_go_terms():
             for term in tmp:
                 go_terms[term].add(row[0])
 
-    for ont in Constants.FUNC_DICT:
+    for ont in CONSTANTS.FUNC_DICT:
         ont_terms = nx.ancestors(go_graph, Constants.FUNC_DICT[ont]).union(set([Constants.FUNC_DICT[ont]]))
         filtered = {key: go_terms[key] for key in go_terms if key in ont_terms}
-        # _max = max(filtered, key=filtered.get)
-        # _min = min(filtered, key=filtered.get)
-        # print(ont, Constants.FUNC_DICT[ont], len(ont_terms), len(filtered), len(filtered[_max]), len(filtered[_min]))
 
         tmp = {}
         for i in filtered:
-            name = str(int(len(filtered[i]) / 100)*100) + "_" + str((int(len(filtered[i]) / 100) + 1) * 100)
-            # print(len(filtered[i]), name)
+            name = str(int(len(filtered[i]) / 100) * 100) + "_" + str((int(len(filtered[i]) / 100) + 1) * 100)
+            print(name)
+            exit()
             if name in tmp:
                 tmp[name] = tmp[name] + 1
             else:
@@ -154,9 +152,8 @@ def statistics_go_terms():
     #     a = nx.descendants(go_graph, node).union(set([node]))
     #     # print(node, assert len(a), len(b))
 
-
 statistics_go_terms()
-
+exit()
 
 def statistics_proteins():
     protein = pd.read_csv("uniprot", sep="\t", index_col=False)
