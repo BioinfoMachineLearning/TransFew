@@ -64,8 +64,7 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
 
 
 # read_uniprot(Constants.ROOT + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
-#
-# exit()
+
 
 def statistics_go_terms():
     go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
@@ -157,6 +156,7 @@ def statistics_go_terms():
 
 statistics_go_terms()
 
+exit()
 
 def statistics_proteins():
     protein = pd.read_csv("uniprot", sep="\t", index_col=False)
