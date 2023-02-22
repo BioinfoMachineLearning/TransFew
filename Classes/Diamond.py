@@ -55,7 +55,7 @@ class Diamond:
 
         adj_list = self.read_file()
         self.graph = nx.Graph(adj_list)
-        nx.write_adjlist(self.graph, self.path)
+        nx.write_gml(self.graph, self.path)
 
     def read_file(self):
         scores = open(self.output, 'r')
@@ -68,7 +68,7 @@ class Diamond:
 
     def get_graph(self):
         if is_file(self.path):
-            self.graph = nx.read_adjlist(self.path)
+            self.graph = nx.read_gml(self.path)
         else:
             self.create_diamond_graph()
         return self.graph

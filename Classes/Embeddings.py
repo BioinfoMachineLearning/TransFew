@@ -1,7 +1,7 @@
 import csv
 import subprocess
 
-import CONSTANTS
+import Constants
 from Utils import is_file, create_directory, readlines_cluster
 
 
@@ -11,7 +11,7 @@ class Embeddings:
     """
 
     def __init__(self, **kwargs):
-        self.dir = kwargs.get('dir', CONSTANTS.ROOT_DIR + "data/Embeddings/")
+        self.dir = kwargs.get('dir', Constants.ROOT + "data/Embeddings/")
         self.fasta = kwargs.get('fasta', None)
         self.session = "training"
         self.database = kwargs.get('database', "")
@@ -103,11 +103,11 @@ class Embeddings:
     def run(self):
         if self.session == "training":
             self.create_database()
-            self.generate_cluster()
-            self.msa_from_cluster()
-            # self.generate_embeddings()
+            # self.generate_cluster()
+            # self.msa_from_cluster()
+            self.generate_embeddings()
             # self.create_msa_files()
-            self.search()
+            # self.search()
         else:
             pass
             # search
@@ -118,6 +118,6 @@ class Embeddings:
 
 
 kwargs = {
-    'fasta': CONSTANTS.ROOT_DIR + "data/Fasta/id2.fasta"
+    'fasta': Constants.ROOT + "data/Fasta/id.fasta"
 }
 embeddings = Embeddings(**kwargs)
