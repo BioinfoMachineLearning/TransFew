@@ -16,7 +16,7 @@ root_terms = {"GO:0008150", "GO:0003674", "GO:0005575"}
 
 exp_evidence_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", "HTP", "HDA", "HMP", "HGI", "HEP"}
 
-ROOT = "D:/Workspace/python-3/TransFun2/"
+ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
 
 NAMESPACES = {
     "cc": "cellular_component",

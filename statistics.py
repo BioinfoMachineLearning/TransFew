@@ -1,6 +1,11 @@
+from collections import Counter
+
 import numpy as np
+import obonet
+import pandas as pd
 from matplotlib import pyplot as plt
 
+import CONSTANTS
 from Classes.Diamond import Diamond
 
 
@@ -41,6 +46,35 @@ def diamond_graph_distribution():
 
 
 def go_term_distribution():
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
+    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training_data.csv", sep="\t", index_col=False)
+
+    go_terms = {term: set() for term in go_graph.nodes()}
+
+    for index, row in protein[["ACC", "GO_IDS"]].iterrows():
+        if isinstance(row[1], str):
+            tmp = row[1].split("\t")
+            for term in tmp:
+                go_terms[term].add(row[0])
+
+
+def go_protein_length_distribution():
+    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training_data.csv", sep="\t", index_col=False)
+    lengths = Counter(protein["SEQUENCE LENGTH"].tolist())
+
+    lengths = sorted(lengths.items(), key=lambda item: item[0], reverse=True)
+    x, y = list(zip(*lengths))
+
+    fig, axs = plt.subplots(1, 1, figsize=(12, 8))
+    axs.scatter(x, y, label="Label here")
+    axs.set_title("Protein length distribution")
+    axs.set_xlabel("# of proteins")
+    axs.set_ylabel("Length of protein")
+
+    plt.show()
+    fig.tight_layout()
+    plt.savefig("plots/diamond_distribution.png")
 
 
 # diamond_graph_distribution()
+go_protein_length_distribution()

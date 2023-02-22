@@ -8,7 +8,7 @@ from Bio.Seq import Seq
 from Bio import SeqIO, SwissProt
 from Bio.SeqRecord import SeqRecord
 
-import Constants
+import CONSTANTS
 from preprocessing.utils import pickle_save, pickle_load
 
 

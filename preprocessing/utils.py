@@ -16,12 +16,11 @@ import csv
 from sklearn.metrics import roc_curve, auc
 from torchviz import make_dot
 
-import Constants
-from Constants import INVALID_ACIDS, amino_acids
+import CONSTANTS
+from CONSTANTS import INVALID_ACIDS, amino_acids
 
 
-def extract_id(header):
-    return header.split('|')[1]
+
 
 
 def count_proteins(fasta_file):
@@ -43,10 +42,7 @@ def create_seqrecord(id="", name="", description="", seq=""):
     return record
 
 
-# Count the number of protein sequences in a fasta file with biopython -- slower.
-def count_proteins_biopython(fasta_file):
-    num = len(list(SeqIO.parse(fasta_file, "fasta")))
-    return num
+
 
 
 def get_proteins_from_fasta(fasta_file):

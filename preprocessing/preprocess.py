@@ -5,7 +5,7 @@ import torch
 import esm
 import torch.nn.functional as F
 
-import Constants
+import CONSTANTS
 from preprocessing.utils import pickle_save, pickle_load, count_proteins_biopython
 
 
