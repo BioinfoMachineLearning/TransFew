@@ -1,5 +1,8 @@
 import networkx as nx
 
+from Utils import is_file
+from preprocessing.utils import pickle_save, pickle_load
+
 
 class Interpro:
     '''
@@ -9,6 +12,7 @@ class Interpro:
         self.lines = None
         self.file = file
         self.graph = nx.DiGraph()
+        self.remap_keys = {}
 
     def propagate_graph(self):
         self.read_file()
@@ -39,14 +43,26 @@ class Interpro:
         rels = open(self.file, 'r')
         self.lines = [i.rstrip('\n').split("::") for i in rels.readlines()]
 
+    def convert_uniprot(self):
+        if is_file("../data/interpro/uniprot2ipr"):
+            self.remap_keys = pickle_load(self.remap_keys, "../data/interpro/uniprot2ipr")
+        else:
+            with open("../data/interpro/protein2ipr.dat") as file:
+                for line in file:
+                    key = line.split("\t")
+                    key, value = key[1], key[0]
+                    self.remap_keys[key] = value
+            pickle_save(self.remap_keys, "../data/interpro/uniprot2ipr")
+
     def get_graph(self):
         return self.graph
 
 
-_graph = Interpro("../data/ParentChildTreeFile.txt")
-_graph.propagate_graph()
-graph = _graph.get_graph()
+_graph = Interpro("../data/interpro/ParentChildTreeFile.txt")
+# _graph.propagate_graph()
+# graph = _graph.get_graph()
+_graph.convert_uniprot()
 
 
-print(graph)
+# print(graph)
 
