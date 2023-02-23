@@ -43,9 +43,12 @@ class Interpro:
         return self.graph
 
 
-_graph = Interpro("../data/ParentChildTreeFile.txt")
+_graph = Interpro(CONSTANTS.ROOT_DIR + "interpro/ParentChildTreeFile.txt")
 _graph.propagate_graph()
 graph = _graph.get_graph()
+
+
+print(graph.nodes)
 
 
 
