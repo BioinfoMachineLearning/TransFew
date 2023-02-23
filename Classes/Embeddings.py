@@ -21,12 +21,11 @@ class Embeddings:
         self.session = "training"
         self.database = kwargs.get('database', "")
 
-        ### paths
         self.mmseq_root = self.dir + "mmseq/"
         self.mmseq_dbase_root = self.mmseq_root + "dbase/"
         self.mmseq_cluster_root = self.mmseq_root + "cluster/"
 
-        self.uniclust_dbase = self.mmseq_root + "cluster/"
+        self.uniclust_dbase = None
 
         self.run()
 
@@ -105,66 +104,38 @@ class Embeddings:
                 seqs.append(create_seqrecord(id=uniprot_id, seq=str(record.seq)))
         return seqs
 
-    def reformat_fasta(self):
-        seqs = self.read_fasta_list()
-        SeqIO.write(seqs, CONSTANTS.ROOT_DIR + "uniprot/{}.fasta".format("uniprot_fasta"), "fasta")
-
-    def create_single_fastas(self):
-        input_seq_iterator = SeqIO.parse(self.fasta, "fasta")
-        for record in input_seq_iterator:
-            uniprot_id = erecord.id)
-            print(uniprot_id)
-            exit()
-            record.seq = Seq(get_sequence_from_pdb(src))
-            unidentified_seqs.append(record)
-            SeqIO.write(new_seq, Constants.ROOT + "uniprot/{}.fasta".format("cleaned"), "fasta")
-
-    def create_msa_files(self):
-        lines = readlines_cluster("D:/Workspace/python-3/TFUN/data/Embeddings/cluster/final_clusters.csv")
-        print(lines)
-
     def search(self, sequences):
         pass
 
     # generate embeddings
     def generate_embeddings(self):
-        models = (("esm_msa_1b", "esm_msa1b_t12_100M_UR50S", "msa", "output", 11, 12),
-                  ("esm_2", "esm2_t48_15B_UR50D", self.fasta, "output", 47, 48),
-                  ("esm_1b", "esm2_t36_3B_UR50D", self.fasta, "output", 35, 36))
-        for model in models[1:]:
+        # name model output dir, embedding layer 1, embedding layer 2, batch
+        models = (("esm_msa_1b", "esm_msa1b_t12_100M_UR50S", "msa", CONSTANTS.ROOT_DIR + "embedding/esm_msa_1b", 11, 12, 10),
+                  ("esm_2", "esm2_t48_15B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm2_t48", 47, 48, 10),
+                  ("esm_2", "esm2_t36_3B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm_t36", 35, 36, 100))
+        for model in models[2:]:
             if model[0] == "esm_msa_1b":
-                CMD = "python D:/Workspace/python-3/TFUN/external/extract.py {} {} {} --repr_layers {} {} --include mean per_tok --toks_per_batch 2 " \
-                    .format(model[1], model[2], model[3], model[4], model[5])
-                print(CMD)
-                subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
+                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok " \
+                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2], model[3], model[4], model[5], model[6])
             else:
-                CMD = "python D:/Workspace/python-3/TFUN/external/extract.py {} {} {} --repr_layers {} {} --include mean per_tok --toks_per_batch 2 " \
-                    .format(model[1], model[2], model[3], model[4], model[5])
-                print(CMD)
-                subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
+                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok --nogpu " \
+                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2], model[3], model[4], model[5], model[6])
+
+            print(CMD)
+            subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
 
     def run(self):
         if self.session == "training":
-            pass
-            # self.create_database()
-            # self.generate_cluster()
+            self.create_database()
+            self.generate_cluster()
             # self.generate_msas()
-            # # self.generate_embeddings()
-            # # self.create_msa_files()
-            # self.search()
-            self.create_single_fastas()
-            # self.reformat_fasta()
+            self.generate_embeddings()
         else:
             pass
-            # search
-            # generate embeddings
-
-        # bulk embedding from fasta(per-residue + per-sequence)
-        # bulk embedding from msa
+            # self.search()
 
 
 kwargs = {
-    'fasta': CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta",
-    'uniclust_dbase': ""
+    'fasta': CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta"
 }
 embeddings = Embeddings(**kwargs)

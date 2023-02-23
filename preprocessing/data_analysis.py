@@ -1,21 +1,24 @@
+import random
 from collections import Counter
 
 import networkx as nx
+import numpy as np
 import obonet
 import matplotlib.pyplot as plt
 import pandas as pd
 from Bio import SwissProt
 import networkx
 import obonet
-import Constants
-from Constants import exp_evidence_codes
+import CONSTANTS
+from CONSTANTS import exp_evidence_codes
+from preprocessing.utils import pickle_save, pickle_load
 
 
 def read_uniprot(in_file, save=False, out_file="uniprot"):
     handle = open(in_file)
-    go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
     all = [["ACC", "ID", "GO_IDS", "EVIDENCES", "ORGANISM", "TAXONOMY", "DATA CLASS",
-            "CREATED", "SEQUENCE UPDATE", "ANNOTATION UPDATE", "SEQUENCE"]]
+            "CREATED", "SEQUENCE UPDATE", "ANNOTATION UPDATE", "SEQUENCE", "SEQUENCE LENGTH"]]
     for record in SwissProt.parse(handle):
         # accessions, annotation_update, comments, created, cross_references, data_class, description
         # entry_name, features, gene_name, host_organism, host_taxonomy_id, keywords, molecule_type
@@ -33,6 +36,7 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
         sequence_update = record.sequence_update[0]
         annotation_update = record.annotation_update[0]
         sequence = record.sequence
+        sequence_length = len(record.sequence)
         go_terms = []
         evidences = []
         for ref in cross_refs:
@@ -48,29 +52,42 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
                     except networkx.exception.NetworkXError:
                         pass
 
-        go_terms = '\t'.join(map(str, go_terms))
-        evidences = '\t'.join(map(str, evidences))
+        if len(go_terms) > 0:
+            go_terms = '\t'.join(map(str, go_terms))
+            evidences = '\t'.join(map(str, evidences))
 
-        all.append([primary_accession, entry_name, go_terms, evidences,
-                    organism, taxonomy, data_class, created,
-                    sequence_update, annotation_update, sequence])
+            all.append([primary_accession, entry_name, go_terms, evidences,
+                        organism, taxonomy, data_class, created,
+                        sequence_update, annotation_update, sequence, sequence_length])
 
     df = pd.DataFrame(all[1:], columns=all[0])
 
-    if save:
-        df.to_csv('{}.csv'.format(out_file), sep='\t', index=False)
-    else:
-        return df
+    df = df.loc[(df["SEQUENCE LENGTH"] > 50) & (df["SEQUENCE LENGTH"] <= 5120)]
+    print(df)
+
+    # if save:
+    #     df.to_csv('{}.csv'.format(out_file), sep='\t', index=False)
+    # else:
+    #     return df
 
 
-# read_uniprot(Constants.ROOT + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
+# read_uniprot(CONSTANTS.ROOT_DIR + "uniprot/uniprot_sprot.dat", save=True, out_file=CONSTANTS.ROOT_DIR +
+# "training_data")
 
 
-def statistics_go_terms():
-    go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
-    protein = pd.read_csv("uniprot.csv", sep="\t", index_col=False)
+# read_uniprot(CONSTANTS.ROOT_DIR + "uniprot/uniprot_sprot.dat", save=True, out_file="uniprot")
+#
+# x = pd.read_csv(CONSTANTS.ROOT_DIR + '{}.csv'.format("training"), sep='\t')
+# print(x)
+
+
+def generate_labels():
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
+    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training.csv", sep="\t", index_col=False)
 
     go_terms = {term: set() for term in go_graph.nodes()}
+
+    final_terms = {}
 
     for index, row in protein[["ACC", "GO_IDS"]].iterrows():
         if isinstance(row[1], str):
@@ -78,122 +95,61 @@ def statistics_go_terms():
             for term in tmp:
                 go_terms[term].add(row[0])
 
-    for ont in Constants.FUNC_DICT:
-        ont_terms = nx.ancestors(go_graph, Constants.FUNC_DICT[ont]).union(set([Constants.FUNC_DICT[ont]]))
-        filtered = {key: go_terms[key] for key in go_terms if key in ont_terms}
-        # _max = max(filtered, key=filtered.get)
-        # _min = min(filtered, key=filtered.get)
-        # print(ont, Constants.FUNC_DICT[ont], len(ont_terms), len(filtered), len(filtered[_max]), len(filtered[_min]))
+    for ont in CONSTANTS.FUNC_DICT:
+        ont_terms = nx.ancestors(go_graph, CONSTANTS.FUNC_DICT[ont]).union(set([CONSTANTS.FUNC_DICT[ont]]))
 
-        tmp = {}
-        for i in filtered:
-            name = str(int(len(filtered[i]) / 100)*100) + "_" + str((int(len(filtered[i]) / 100) + 1) * 100)
-            # print(len(filtered[i]), name)
-            if name in tmp:
-                tmp[name] = tmp[name] + 1
-            else:
-                tmp[name] = 1
+        filtered = {key: (len(go_terms[key]), len(nx.ancestors(go_graph, key).union(set([key]))))
+                    for key in go_terms if key in ont_terms and len(go_terms[key]) > 0}
 
-        plt.plot(tmp.keys(), tmp.values(), color='g')
-        plt.bar(tmp.keys(), tmp.values(), color='g')
-        plt.ylim(0, 100)
-        plt.xticks(rotation=90, ha='right')
-        plt.show()
-    exit()
+        filtered = {key: value for key, value in filtered.items()
+                    if value[1] < 100 and 30 < value[0] < 500}
 
-    count_dict = {}
-    for key, value in term_counter.items():
-        print(key, value)
-        exit()
-    #     if value in count_dict:
-    #         count_dict[value] +=1
-    #     else:
-    #         count_dict[value] = 1
-    #
-    # k = []
-    # v = []
-    # for key, value in count_dict.items():
-    #     k.append(key)
-    #     v.append(value)
-    #
-    #
-    # z = Counter(term_counter.values())
-    #
-    # print(z)
-    # exit()
-    #
-    # # create frequency histogram
-    # plt.plot(v, linewidth=2, markersize=12)
-    # plt.show()
-    # exit()
+        terms = sorted(filtered.keys())
 
-    # keys = []
-    # vals = []
-    #
-    # for key, value in go_terms.items():
-    #     keys.append(key)
-    #     vals.append(value)
-    #
-    # plt.bar(range(len(keys)), vals, tick_label=keys)
-    # plt.show()
-    #
-    # # compute distribution
-    #
-    # #     try:
-    # #         print(row[1])
-    # #         go_terms[row[1]].add(row[0])
-    # #     except KeyError:
-    # #         go_terms[row[1]] = set([row[0],])
-    # #
-    # # print(go_terms)
-    # exit()
+        final_terms[ont] = terms
 
-    # for node, data in go_graph.nodes(data=True):
-    #     # print(node, data['namespace'], len(nx.descendants(go_graph, node)), len(nx.ancestors(go_graph, node)))
-    #     a = nx.descendants(go_graph, node).union(set([node]))
-    #     # print(node, assert len(a), len(b))
+    # labels for proteins
+    labels = {}
+    train_proteins = {}
+    for ont in CONSTANTS.FUNC_DICT:
+        prot = {}
+        train_proteins[ont] = set()
+        curr_ont = final_terms[ont]
+        for index, row in protein[["ACC", "GO_IDS"]].iterrows():
+            _protein = row[0]
+            tmp_arr = []
+            tmp = set(row[1].split("\t"))
+            for term in curr_ont:
+                if term in tmp:
+                    tmp_arr.append(1)
+                else:
+                    tmp_arr.append(0)
+            if sum(tmp_arr) > 0:
+                prot[_protein] = tmp_arr
+                train_proteins[ont].add(_protein)
+        labels[ont] = prot
+
+    # Train validation indicies
+    training_proteins = {}
+    for ont in train_proteins:
+        training_proteins[ont] = {}
+        tot = int(0.15 * len(train_proteins[ont]))
+        indicies = random.sample(range(0, len(train_proteins[ont])), tot)
+
+        _all = list(train_proteins[ont])
+        _valid = set([_all[i] for i in indicies])
+        _train = train_proteins[ont].difference(_valid)
+
+        assert len(_train.intersection(_valid)) == 0
+        assert len(_train) + len(_valid) == len(train_proteins[ont])
+
+        training_proteins[ont]['train'] = _train
+        training_proteins[ont]['valid'] = _valid
+
+    pickle_save(labels, CONSTANTS.ROOT_DIR + "datasets/labels")
+    pickle_save(training_proteins, CONSTANTS.ROOT_DIR + "datasets/training_validation")
 
 
-statistics_go_terms()
-
-exit()
-
-def statistics_proteins():
-    protein = pd.read_csv("uniprot", sep="\t", index_col=False)
-
-    # pd.set_option('display.max_columns', None)
-    # pd.set_option('display.max_rows', None)
-    print(protein)
-    print(protein.shape)
-
-    # go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
-    # go_rels = Ontology(Constants.ROOT + "obo/go-basic.obo", with_rels=True)
-
-    # for node, data in go_graph.nodes(data=True):
-    #     # print(node, data['namespace'], len(nx.descendants(go_graph, node)), len(nx.ancestors(go_graph, node)))
-    #     a = nx.descendants(go_graph, node).union(set([node]))
-    #     b = go_rels.get_anchestors(node)
-    #     print(node, len(a), len(b))
-
-    # go_terms = {term: set() for term in go_graph.nodes()}
-    #
-    # for index, row in protein[["ACC", "GO_ID"]].iterrows():
-    #     try:
-    #         print(row[1])
-    #         go_terms[row[1]].add(row[0])
-    #     except KeyError:
-    #         go_terms[row[1]] = set([row[0],])
-    #
-    # print(go_terms)
+generate_labels()
 
 
-statistics_go_terms()
-
-exit()
-
-go_rels = Ontology(Constants.ROOT + "obo/go-basic.obo", with_rels=True)
-# go_set = go_rels.get_namespace_terms(Constants.NAMESPACES["cc"])
-
-go_set = go_rels.get_anchestors("GO:0009420")
-
-# print(go_set)
