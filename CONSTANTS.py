@@ -18,6 +18,8 @@ exp_evidence_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", "HT
 
 ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
 
+ROOT = "/home/fbqc9/PycharmProjects/TransFun2/"
+
 NAMESPACES = {
     "cc": "cellular_component",
     "mf": "molecular_function",

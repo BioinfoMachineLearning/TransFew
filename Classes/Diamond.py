@@ -4,8 +4,10 @@ import subprocess
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 
+import CONSTANTS
 from Utils import is_file, create_directory
 
 
@@ -19,14 +21,15 @@ class Diamond:
         self.dir = dir
         create_directory(self.dir)
         self.fasta = kwargs.get('fasta_file', None)
-        self.dbase = kwargs.get('dbase', "data/Diamond/database")
-        self.output = kwargs.get('output', "data/Diamond/output.tsv")
-        self.path = kwargs.get('output', "data/Diamond/graph.adjlist")
+        self.dbase = kwargs.get('dbase', CONSTANTS.ROOT_DIR + "diamond/database")
+        self.output = kwargs.get('output', CONSTANTS.ROOT_DIR + "diamond/output.tsv")
+        self.path = kwargs.get('output', CONSTANTS.ROOT_DIR + "diamond/graph.adjlist")
+        self.ontology = kwargs.get('ontology', "cc")
 
     def create_diamond_dbase(self):
         print("Creating Diamond Database")
         if is_file(self.fasta):
-            CMD = "D:/Workspace/python-3/TFUN/diamond.exe makedb --in {} -d {}" \
+            CMD = "diamond makedb --in {} -d {}" \
                 .format(self.fasta, self.dbase)
             subprocess.call(CMD, shell=True)
         else:
@@ -35,7 +38,7 @@ class Diamond:
 
     def query_diamond(self):
         print("Querying Diamond Database")
-        CMD = "D:/Workspace/python-3/TFUN/diamond.exe blastp -q {} -d {} -o {} --very-sensitive" \
+        CMD = "diamond blastp -q {} -d {} -o {} --very-sensitive" \
             .format(self.fasta, self.dbase, self.output)
         if is_file(self.dbase + ".dmnd"):
             subprocess.call(CMD, shell=True)
@@ -55,6 +58,13 @@ class Diamond:
 
         adj_list = self.read_file()
         self.graph = nx.Graph(adj_list)
+
+        # Add nodes lost from diamond sequence alignment
+        nodes = set(self.graph.nodes)
+        protein = set(pd.read_csv(CONSTANTS.ROOT_DIR + "training.csv", sep="\t", index_col=False)['ACC'].tolist())
+
+        left_off = protein.difference(nodes)
+        self.graph.add_nodes_from(left_off)
         nx.write_gml(self.graph, self.path)
 
     def read_file(self):
@@ -71,6 +81,7 @@ class Diamond:
             self.graph = nx.read_gml(self.path)
         else:
             self.create_diamond_graph()
+
         return self.graph
 
 
