@@ -2,6 +2,8 @@
 import os
 import shutil
 
+from preprocessing.utils import pickle_load
+
 
 # Just copy remaining proteins for msa
 def my_copy():
@@ -21,4 +23,10 @@ def my_copy():
         dst = "/home/fbqc9/PycharmProjects/TransFun2Data/uniprot/single_fasta/{}.fasta".format(i)
         shutil.copyfile(src, dst)
 
-my_copy()
+# my_copy()
+
+
+data = pickle_load("test")
+
+for i in data['cc']:
+    print(i, len(data['cc'][i]))
