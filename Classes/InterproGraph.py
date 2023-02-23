@@ -48,4 +48,5 @@ _graph.propagate_graph()
 graph = _graph.get_graph()
 
 
+print(graph)
 

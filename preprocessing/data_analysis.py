@@ -67,7 +67,7 @@ def read_uniprot(in_file, save=False, out_file="uniprot"):
 
 
 def statistics_go_terms():
-    go_graph = obonet.read_obo(open("go-basic.obo", 'r'))
+    go_graph = obonet.read_obo(open(Constants.ROOT + "obo/go-basic.obo", 'r'))
     protein = pd.read_csv("uniprot.csv", sep="\t", index_col=False)
 
     go_terms = {term: set() for term in go_graph.nodes()}
@@ -81,71 +81,82 @@ def statistics_go_terms():
     for ont in Constants.FUNC_DICT:
         ont_terms = nx.ancestors(go_graph, Constants.FUNC_DICT[ont]).union(set([Constants.FUNC_DICT[ont]]))
         filtered = {key: go_terms[key] for key in go_terms if key in ont_terms}
+        # _max = max(filtered, key=filtered.get)
+        # _min = min(filtered, key=filtered.get)
+        # print(ont, Constants.FUNC_DICT[ont], len(ont_terms), len(filtered), len(filtered[_max]), len(filtered[_min]))
 
-        filtered = {key: (len(value), len(nx.ancestors(go_graph, key).union(set([key])))) for key, value in
-                    filtered.items() if len(value) > 0}
+        tmp = {}
+        for i in filtered:
+            name = str(int(len(filtered[i]) / 100)*100) + "_" + str((int(len(filtered[i]) / 100) + 1) * 100)
+            # print(len(filtered[i]), name)
+            if name in tmp:
+                tmp[name] = tmp[name] + 1
+            else:
+                tmp[name] = 1
 
-        _sorted = dict(sorted(filtered.items(), key=lambda item: item[1]))
-
-        fig, axs = plt.subplots(4, 1, figsize=(12, 8))
-        # all data
-        x = list(zip(*filtered.values()))
-        x, y = x[0], x[1]
-        axs[0].scatter(x, y, label=len(filtered))
-        axs[0].set_title("Distribution of Ancestors")
-        axs[0].set_xlabel("# Proteins")
-        axs[0].set_ylabel("Descendants")
-        axs[0].legend()
-
-        # first filter < 1000 at least 40 proteins and less than 1000 descendants
-        _filtered = {key: value for key, value in filtered.items()
-                     if value[1] < 100 and value[0] > 30 and value[0] < 500}
-        x = list(zip(*_filtered.values()))
-        x, y = x[0], x[1]
-        axs[1].scatter(x, y, label=len(_filtered), c="blue")
-        axs[1].set_title("Distribution of Ancestors")
-        axs[1].set_xlabel("# Proteins")
-        axs[1].set_ylabel("Descendants")
-        axs[1].legend()
-
-        # removed
-        removed = {key: value for key, value in filtered.items()
-                   if not key in _filtered}
-        x = list(zip(*removed.values()))
-        x, y = x[0], x[1]
-        axs[2].scatter(x, y, label=len(removed), c="red")
-        axs[2].set_title("Distribution of Ancestors")
-        axs[2].set_xlabel("# Proteins")
-        axs[2].set_ylabel("Descendants")
-        axs[2].legend()
-
-        # can be retrieved
-        _x = [(i, len(nx.ancestors(go_graph, i).union(set([i])).intersection(set(_filtered.keys())))) for i in removed]
-        _x = [i[1] for i in _x]
-        _x = Counter(_x)
-
-        axs[3].bar(_x.keys(), _x.values(), align='center', label="0: {}, 1: {}, 2: {}\n"
-                                                                 "3: {}, 4: {}, 5: {}".format(
-            _x[0], _x[1], _x[2], _x[3], _x[4], _x[5]))
-        axs[3].set_ylim([0, 12])
-        axs[3].set_title("Ancestors in training")
-        axs[3].set_xlabel("# Ancestors in training")
-        axs[3].set_ylabel("# of go terms")
-        axs[3].legend()
-
-        plt.suptitle("Distribution of nodes and degree for diamond graph -- {}".format(len(ont_terms)))
-        fig.tight_layout()
+        plt.plot(tmp.keys(), tmp.values(), color='g')
+        plt.bar(tmp.keys(), tmp.values(), color='g')
+        plt.ylim(0, 100)
+        plt.xticks(rotation=90, ha='right')
         plt.show()
+    exit()
 
+    count_dict = {}
+    for key, value in term_counter.items():
+        print(key, value)
         exit()
+    #     if value in count_dict:
+    #         count_dict[value] +=1
+    #     else:
+    #         count_dict[value] = 1
+    #
+    # k = []
+    # v = []
+    # for key, value in count_dict.items():
+    #     k.append(key)
+    #     v.append(value)
+    #
+    #
+    # z = Counter(term_counter.values())
+    #
+    # print(z)
+    # exit()
+    #
+    # # create frequency histogram
+    # plt.plot(v, linewidth=2, markersize=12)
+    # plt.show()
+    # exit()
 
-        plt.savefig("plots/diamond_distribution.png")
+    # keys = []
+    # vals = []
+    #
+    # for key, value in go_terms.items():
+    #     keys.append(key)
+    #     vals.append(value)
+    #
+    # plt.bar(range(len(keys)), vals, tick_label=keys)
+    # plt.show()
+    #
+    # # compute distribution
+    #
+    # #     try:
+    # #         print(row[1])
+    # #         go_terms[row[1]].add(row[0])
+    # #     except KeyError:
+    # #         go_terms[row[1]] = set([row[0],])
+    # #
+    # # print(go_terms)
+    # exit()
+
+    # for node, data in go_graph.nodes(data=True):
+    #     # print(node, data['namespace'], len(nx.descendants(go_graph, node)), len(nx.ancestors(go_graph, node)))
+    #     a = nx.descendants(go_graph, node).union(set([node]))
+    #     # print(node, assert len(a), len(b))
 
 
 statistics_go_terms()
 
 exit()
-
 
 def statistics_proteins():
     protein = pd.read_csv("uniprot", sep="\t", index_col=False)

@@ -14,7 +14,7 @@ from collections import deque, Counter
 import csv
 
 from sklearn.metrics import roc_curve, auc
-from torchviz import make_dot
+# from torchviz import make_dot
 
 import CONSTANTS
 from CONSTANTS import INVALID_ACIDS, amino_acids
