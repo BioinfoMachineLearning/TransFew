@@ -2,31 +2,28 @@
 import os
 import shutil
 
-from preprocessing.utils import pickle_load
+import CONSTANTS
 
 
-# Just copy remaining proteins for msa
-def my_copy():
-    generated = os.listdir("/home/fbqc9/PycharmProjects/TransFun2Data/uniprot/a3ms")
-    generated = set([i.split(".")[0] for i in generated])
+def interpro_go_terms():
+    with open(CONSTANTS.ROOT_DIR + "interpro/interpro2go") as file:
+        next(file)
+        next(file)
+        next(file)
+        next(file)
+        next(file)
+        terms = {}
+        for line in file:
+            go = line.strip().split(";")[1]
+            ipr = line.strip().split(",")[0].split(" ")[0].split(":")[1]
 
-    remaining = set(os.listdir("/home/fbqc9/PycharmProjects/TransFun2Data/uniprot/single_fasta2"))
-    remaining = set([i.split(".")[0] for i in remaining])
+            if go in terms:
+                print(go)
+                terms[ipr].append(go)
+            else:
+                terms[ipr] = [go]
 
-    remaining = remaining.difference(generated)
-    print(len(remaining))
-
-
-    for i in remaining:
-        print(i)
-        src = "/home/fbqc9/PycharmProjects/TransFun2Data/uniprot/single_fasta2/{}.fasta".format(i)
-        dst = "/home/fbqc9/PycharmProjects/TransFun2Data/uniprot/single_fasta/{}.fasta".format(i)
-        shutil.copyfile(src, dst)
-
-# my_copy()
+    print(terms)
 
 
-data = pickle_load("test")
-
-for i in data['cc']:
-    print(i, len(data['cc'][i]))
+interpro_go_terms()

@@ -98,11 +98,22 @@ def generate_labels():
     for ont in CONSTANTS.FUNC_DICT:
         ont_terms = nx.ancestors(go_graph, CONSTANTS.FUNC_DICT[ont]).union(set([CONSTANTS.FUNC_DICT[ont]]))
 
-        filtered = {key: (len(go_terms[key]), len(nx.ancestors(go_graph, key).union(set([key]))))
-                    for key in go_terms if key in ont_terms and len(go_terms[key]) > 0}
+        filtered = {key: go_terms[key] for key in go_terms if key in ont_terms}
 
-        filtered = {key: value for key, value in filtered.items()
-                    if value[1] < 100 and 30 < value[0] < 500}
+        filtered = {key: (len(value), len(nx.ancestors(go_graph, key).union(set([key])))) for key, value in
+                    filtered.items()}
+
+        filtered = {term: (num_prot, ancs) for term, (num_prot, ancs) in filtered.items() if
+                    ancs < 100 and 30 < num_prot < 500}
+
+        print(len(filtered))
+
+        # for i in filtered.items():
+        #     print(i)
+        # exit()
+
+        # filtered = {key: value for key, value in filtered.items()
+        #             if value[1] < 100 and 30 < value[0] < 500}
 
         terms = sorted(filtered.keys())
 
@@ -151,5 +162,3 @@ def generate_labels():
 
 
 generate_labels()
-
-

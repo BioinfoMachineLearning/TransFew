@@ -62,18 +62,20 @@ class DiamondDataset(InMemoryDataset):
         layer = 36
         test_nodes = set()
         for node in nodes:
-            if is_file(CONSTANTS.ROOT_DIR + "embedding/esm_t36/{}.pt".format(node)):
-                _x = torch.load(CONSTANTS.ROOT_DIR + "embedding/esm_t36/{}.pt".format(node))
-                node_features[node] = {'{}'.format(layer): _x['mean_representations'][layer].tolist()}
-                test_nodes.add(node)
+            if is_file(CONSTANTS.ROOT_DIR_EXT + "embedding/esm_36/{}.pt".format(node)):
+                try:
+                    _x = torch.load(CONSTANTS.ROOT_DIR_EXT + "embedding/esm_36/{}.pt".format(node))
+                    node_features[node] = {'{}'.format(layer): _x['mean_representations'][layer].tolist()}
+                    test_nodes.add(node)
+                except EOFError as e:
+                    G.remove_node(node)
             else:
                 G.remove_node(node)
 
-
+        print(len(G.nodes))
         y = pickle_load(CONSTANTS.ROOT_DIR + "datasets/labels")[self.ont]
         y = np.array([y[node] for node in y if node in test_nodes])
         y = torch.from_numpy(y).float()
-
 
         indicies = set(enumerate(nodes))
         train_mask = []
@@ -101,3 +103,6 @@ class DiamondDataset(InMemoryDataset):
 
     def __repr__(self) -> str:
         return f'{self.name}()'
+
+
+# dataset = DiamondDataset()

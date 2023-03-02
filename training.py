@@ -1,3 +1,4 @@
+import math
 import os
 import argparse
 
@@ -19,6 +20,7 @@ import CONSTANTS
 from Graph.DiamondDataset import DiamondDataset
 from Graph.Testp import Planetoid
 from Classes.Diamond import Diamond
+from Loss.CustomLoss import FocalLoss
 from models.model import GAT
 from preprocessing.utils import load_ckp
 
@@ -41,28 +43,25 @@ parser.add_argument('--hidden3', type=int, default=1000, help='Number of hidden 
 parser.add_argument('--train_batch', type=int, default=1, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=10, help='Validation batch size.')
 parser.add_argument('--dropout', type=float, default=0., help='Dropout rate (1 - keep probability).')
-parser.add_argument('--seq', type=float, default=0.9, help='Sequence Identity (Sequence Identity).')
 parser.add_argument("--ont", default='cc', type=str, help='Ontology under consideration')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.cuda:
     device = 'cuda'
-# device = 'cpu'
+device = 'cpu'
 
 
-wandb.init(project="transfun2", entity='frimpz',
-           name="diamond_cc")
+# wandb.init(project="transfun2", entity='frimpz',
+#            name="diamond_cc")
 
 
 def train_model(start_epoch, min_val_loss, model, optimizer, criterion, data):
-
     for epoch in range(start_epoch, args.epochs):
         print(" ---------- Epoch {} ----------".format(epoch))
 
         t = time.time()
         with torch.autograd.set_detect_anomaly(True):
-
             ###################
             # train the model #
             ###################
@@ -72,7 +71,7 @@ def train_model(start_epoch, min_val_loss, model, optimizer, criterion, data):
             output = model(data.to(device))
 
             loss = criterion(output, data.y)
-            # loss = (loss * class_weights).mean()
+            loss = (loss * weights).mean()
             loss = loss.mean()
 
             loss.backward()
@@ -89,11 +88,13 @@ def train_model(start_epoch, min_val_loss, model, optimizer, criterion, data):
                        "train_loss": loss,
                        "precision": precision,
                        "recall": recall,
-                       "f1": f1 })
+                       "f1": f1})
 
 
 print(args.ont)
 dataset = DiamondDataset()
+print(dataset)
+exit()
 
 print(f'Dataset: {dataset}:')
 print('======================')
@@ -103,8 +104,11 @@ print(f'Number of classes: {dataset.num_classes}')
 
 data = dataset[0]  # Get the first graph object.
 
-print()
-print(data)
+counts = data.y.numpy().sum(axis=0)
+max_count = max(counts)
+weights = torch.tensor([math.log2(max_count / i) if i > 0 else math.log2(max_count + 10) for i in counts],
+                                              dtype=torch.float).to(device)
+
 print('===========================================================================================================')
 
 # Gather some statistics about the graph.
@@ -120,7 +124,8 @@ print(f'Is undirected: {data.is_undirected()}')
 model = GAT(dataset.num_features, dataset.num_classes)
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-criterion = torch.nn.BCELoss(reduction='none')
+# criterion = torch.nn.BCELoss(reduction='none')
+criterion = FocalLoss()
 
 ckp_dir = CONSTANTS.ROOT_DIR + 'checkpoints/{}/model_checkpoint/'.format(args.ont)
 ckp_pth = ckp_dir + "current_checkpoint.pt"

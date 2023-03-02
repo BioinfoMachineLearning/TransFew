@@ -20,7 +20,7 @@ class Diamond:
         self.graph = None
         self.dir = dir
         create_directory(self.dir)
-        self.fasta = kwargs.get('fasta_file', None)
+        self.fasta = kwargs.get('fasta_file', CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta")
         self.dbase = kwargs.get('dbase', CONSTANTS.ROOT_DIR + "diamond/database")
         self.output = kwargs.get('output', CONSTANTS.ROOT_DIR + "diamond/output.tsv")
         self.path = kwargs.get('output', CONSTANTS.ROOT_DIR + "diamond/graph.adjlist")
