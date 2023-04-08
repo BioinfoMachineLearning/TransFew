@@ -73,7 +73,8 @@ class Diamond:
         for line in scores.readlines():
             tmp = line.split("\t")
             src, des, wgt = tmp[0], tmp[1], float(tmp[2]) / 100
-            lines.append((src, des, {"weight": wgt}))
+            if src != des:
+                lines.append((src, des, {"weight": wgt}))
         return lines
 
     def get_graph(self):
@@ -83,6 +84,3 @@ class Diamond:
             self.create_diamond_graph()
 
         return self.graph
-
-
-

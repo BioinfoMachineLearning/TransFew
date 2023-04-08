@@ -5,19 +5,20 @@ import torch.nn.functional as F
 ALPHA = 0.8
 GAMMA = 2
 
+
 class FocalLoss(torch.nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(FocalLoss, self).__init__()
 
     def forward(self, inputs, targets, alpha=ALPHA, gamma=GAMMA, smooth=1):
-        inputs = F.sigmoid(inputs)
+        # inputs = F.sigmoid(inputs)
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
         # first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
+        BCE = F.binary_cross_entropy(inputs, targets, reduction='none')
         BCE_EXP = torch.exp(-BCE)
-        focal_loss = alpha * ( 1 -BCE_EXP )**gamma * BCE
+        focal_loss = alpha * (1 - BCE_EXP) ** gamma * BCE
 
         return focal_loss
 
@@ -33,7 +34,7 @@ class FocalTverskyLoss(torch.nn.Module):
         super(FocalTverskyLoss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1, alpha=ALPHA, beta=BETA, gamma=GAMMA):
-        inputs = F.sigmoid(inputs)
+        # inputs = F.sigmoid(inputs)
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
@@ -46,4 +47,3 @@ class FocalTverskyLoss(torch.nn.Module):
         FocalTversky = (1 - Tversky) ** gamma
 
         return FocalTversky
-
