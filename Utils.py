@@ -31,7 +31,7 @@ def create_seqrecord(id="", name="", description="", seq=""):
 def filtered_sequences(fasta_file):
     """
          Script is used to create fasta files based on alphafold sequence, by replacing sequences that are different.
-        :param uniprot_fasta_file: input uniprot fasta file.
+        :param fasta_file:
         :return: None
         """
 

@@ -189,9 +189,8 @@ class Preprocess:
     def run(self):
         # create training data
         if not is_file(self.training_file):
-            self.read_uniprot(self.raw_fasta, self.go_graph, save=False, out_file=self.training_file)
+            self.read_uniprot(self.raw_fasta, self.go_graph, save=True, out_file=self.training_file)
         training_data = pd.read_csv(self.training_file, sep="\t", index_col=False)
-
 
         prots = training_data['ACC'].to_list()
 
@@ -229,7 +228,7 @@ class Preprocess:
         # self.generate_templates()
         # print("++++++++++++++++++++++ Embedding Generation Finished ++++++++++++++++++++++")
 
-
         # per residue etc
+
 
 x = Preprocess()
