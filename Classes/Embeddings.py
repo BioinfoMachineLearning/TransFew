@@ -112,22 +112,24 @@ class Embeddings:
         # name model output dir, embedding layer 1, embedding layer 2, batch
         models = (("esm_msa_1b", "esm_msa1b_t12_100M_UR50S", "msa", CONSTANTS.ROOT_DIR + "embedding/esm_msa_1b", 11, 12, 10),
                   ("esm_2", "esm2_t48_15B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm2_t48", 47, 48, 10),
-                  ("esm_2", "esm2_t36_3B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm_t36", 35, 36, 100))
+                  ("esm_2", "esm2_t36_3B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm_t36", 35, 36, 50))
         for model in models[2:]:
             if model[0] == "esm_msa_1b":
-                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok " \
-                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2], model[3], model[4], model[5], model[6])
+                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok contacts " \
+                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2],
+                                                    model[3], model[4], model[5], model[6])
             else:
                 CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok --nogpu " \
-                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2], model[3], model[4], model[5], model[6])
+                      "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2],
+                                                    model[3], model[4], model[5], model[6])
 
             print(CMD)
             subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
 
     def run(self):
         if self.session == "training":
-            self.create_database()
-            self.generate_cluster()
+            # self.create_database()
+            # self.generate_cluster()
             # self.generate_msas()
             self.generate_embeddings()
         else:
@@ -136,6 +138,6 @@ class Embeddings:
 
 
 kwargs = {
-    'fasta': CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta"
+    'fasta': CONSTANTS.ROOT_DIR + "testfasta"
 }
 embeddings = Embeddings(**kwargs)

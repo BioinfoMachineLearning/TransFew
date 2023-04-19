@@ -47,7 +47,7 @@ def create_seqrecord(id="", name="", description="", seq=""):
 
 def get_proteins_from_fasta(fasta_file):
     proteins = list(SeqIO.parse(fasta_file, "fasta"))
-    proteins = [i.id.split("|")[1] for i in proteins]
+    proteins = [i.id for i in proteins]
     return proteins
 
 

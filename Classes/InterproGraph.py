@@ -1,4 +1,5 @@
 import networkx as nx
+import pandas as pd
 
 from Utils import is_file
 from preprocessing.utils import pickle_save, pickle_load
@@ -8,6 +9,7 @@ class Interpro:
     '''
         Class to handle interpro data
     '''
+
     def __init__(self, file):
         self.lines = None
         self.file = file
@@ -48,21 +50,21 @@ class Interpro:
             self.remap_keys = pickle_load(self.remap_keys, "../data/interpro/uniprot2ipr")
         else:
             with open("../data/interpro/protein2ipr.dat") as file:
+                proteins = set(pd.read_csv("../data/uniprot.csv", sep="\t", index_col=False)['ACC'].tolist())
                 for line in file:
                     key = line.split("\t")
-                    key, value = key[1], key[0]
-                    self.remap_keys[key] = value
-            pickle_save(self.remap_keys, "../data/interpro/uniprot2ipr")
+                    uniprot, intepro, signature = key[0], key[1], key[3]
+                    if uniprot in proteins:
+                        self.remap_keys[intepro] = (uniprot, intepro, signature)
+            pickle_save(self.remap_keys, "../data/interpro/uni2ipr2sig")
 
     def get_graph(self):
         return self.graph
 
 
-_graph = Interpro("../data/interpro/ParentChildTreeFile.txt")
+# _graph = Interpro("../data/interpro/ParentChildTreeFile.txt")
 # _graph.propagate_graph()
 # graph = _graph.get_graph()
-_graph.convert_uniprot()
+# _graph.convert_uniprot()
 
-
-# print(graph)
 
