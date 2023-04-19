@@ -44,11 +44,12 @@ def diamond_graph_distribution():
     plt.suptitle("Distribution of nodes and degree for diamond graph")
     fig.tight_layout()
     plt.savefig("plots/diamond_distribution.png")
+#
 
 
 def statistics_go_terms():
-    go_graph = obonet.read_obo(open("go-basic.obo", 'r'))
-    protein = pd.read_csv("uniprot.csv", sep="\t", index_col=False)
+    go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
+    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training.csv", sep="\t", index_col=False)
 
     go_terms = {term: set() for term in go_graph.nodes()}
 
@@ -59,11 +60,11 @@ def statistics_go_terms():
                 go_terms[term].add(row[0])
 
     for ont in CONSTANTS.FUNC_DICT:
-        ont_terms = nx.ancestors(go_graph, Constants.FUNC_DICT[ont]).union(set([Constants.FUNC_DICT[ont]]))
+        ont_terms = nx.ancestors(go_graph, CONSTANTS.FUNC_DICT[ont]).union(set([CONSTANTS.FUNC_DICT[ont]]))
         filtered = {key: go_terms[key] for key in go_terms if key in ont_terms}
 
         filtered = {key: (len(value), len(nx.ancestors(go_graph, key).union(set([key])))) for key, value in
-                    filtered.items() if len(value) > 0}
+                    filtered.items() if len(value) > 100}
 
         _sorted = dict(sorted(filtered.items(), key=lambda item: item[1]))
 
@@ -116,9 +117,11 @@ def statistics_go_terms():
 
         plt.suptitle("Distribution of nodes and degree for diamond graph -- {}".format(len(ont_terms)))
         fig.tight_layout()
-        plt.show()
-
-
+        plt.savefig("plots/go_term_stats_{}.png".format(ont))
+#
+# statistics_go_terms()
+#
+# exit()
 
 def go_term_distribution():
     go_graph = obonet.read_obo(open(CONSTANTS.ROOT_DIR + "obo/go-basic.obo", 'r'))
@@ -132,7 +135,7 @@ def go_term_distribution():
 
 
 def go_protein_length_distribution():
-    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training_data.csv", sep="\t", index_col=False)
+    protein = pd.read_csv(CONSTANTS.ROOT_DIR + "training.csv", sep="\t", index_col=False)
     lengths = Counter(protein["SEQUENCE LENGTH"].tolist())
 
     lengths = sorted(lengths.items(), key=lambda item: item[0], reverse=True)
@@ -144,10 +147,10 @@ def go_protein_length_distribution():
     axs.set_xlabel("# of proteins")
     axs.set_ylabel("Length of protein")
 
-    plt.show()
     fig.tight_layout()
-    plt.savefig("plots/diamond_distribution.png")
-
+    plt.savefig("plots/protein_length_distribution.png")
+go_protein_length_distribution()
+exit()
 
 def stats_on_clusters(in_file):
     """

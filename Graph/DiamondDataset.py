@@ -50,6 +50,8 @@ class DiamondDataset(InMemoryDataset):
         G = diamond.get_graph()
         nodes = set(G.nodes)
 
+
+
         tmp = pickle_load(CONSTANTS.ROOT_DIR + "datasets/training_validation")
         train_val = tmp[self.ont]['train'].union(tmp[self.ont]['valid'])
 
@@ -58,22 +60,26 @@ class DiamondDataset(InMemoryDataset):
         G.remove_nodes_from(remove)
         nodes = list(G.nodes)
 
+        embeddings = pickle_load(CONSTANTS.ROOT_DIR + "embedding/esm_36_all")
+        embeddings = {key: embeddings[key] for key in nodes if key in embeddings}
+
+
         node_features = {}
         layer = 36
         test_nodes = set()
-        for node in nodes:
-            if is_file(CONSTANTS.ROOT_DIR + "embedding/esm_t36/{}.pt".format(node)):
-                _x = torch.load(CONSTANTS.ROOT_DIR + "embedding/esm_t36/{}.pt".format(node))
-                node_features[node] = {'{}'.format(layer): _x['mean_representations'][layer].tolist()}
+        for pos, node in enumerate(nodes):
+            if node in embeddings:
+                node_features[node] = {'{}'.format(layer): embeddings[node]}
                 test_nodes.add(node)
             else:
                 G.remove_node(node)
 
+        print("Diamond Graph with {} nodes".format(len(G.nodes)))
+        nodes = list(G.nodes)
 
         y = pickle_load(CONSTANTS.ROOT_DIR + "datasets/labels")[self.ont]
         y = np.array([y[node] for node in y if node in test_nodes])
         y = torch.from_numpy(y).float()
-
 
         indicies = set(enumerate(nodes))
         train_mask = []
@@ -93,10 +99,16 @@ class DiamondDataset(InMemoryDataset):
         # add node features
         nx.set_node_attributes(G, node_features)
 
-        data = from_networkx(G, group_node_attrs=all, group_edge_attrs=all)
-        data.train_mask = torch.BoolTensor(train_mask)
+        data = from_networkx(G, group_node_attrs=all)
+        # print(data.nodes)
+        print(data.generate_ids())
+        #print(zip(G.nodes, data.nodes))
+        exit()
+        data.train_mask = torch.BoolTensor( train_mask)
         data.valid_mask = torch.BoolTensor(valid_mask)
+        data.nodes = nodes
         data.y = y
+        self.clusters = []
         torch.save(self.collate([data]), self.processed_paths[0])
 
     def __repr__(self) -> str:

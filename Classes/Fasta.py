@@ -29,10 +29,26 @@ class Fasta:
         seqs = self.fasta_to_list()
         SeqIO.write(seqs, CONSTANTS.ROOT_DIR + "uniprot/{}.fasta".format("uniprot_fasta"), "fasta")
 
-    def fastas_from_fasta(self):
+    # Create individual fasta files from a large fasta file for hhblits alignment
+    def fastas_from_fasta(self, _filter=None):
         seqs = self.fasta_to_list()
         for seq in seqs:
             SeqIO.write(seq, CONSTANTS.ROOT_DIR + "uniprot/single_fasta/{}.fasta".format(seq.id), "fasta")
+
+    # Removes unwanted proteins from fasta file
+    def subset_from_fasta(self, output=None, max_seq_len=1022):
+        seqs = self.fasta_to_list()
+        subset = []
+        for record in seqs:
+            if len(record.seq) > max_seq_len:
+                splits = range(int(len(record.seq)/max_seq_len) + 1)
+
+                for split in splits:
+                    seq_len = str(record.seq[split*max_seq_len: (split*max_seq_len) + max_seq_len])
+
+                    subset.append(create_seqrecord(id='{}_{}'.format(record.id, split), seq=seq_len))
+
+        SeqIO.write(subset, output, "fasta")
 
     # Count the number of protein sequences in a fasta file with biopython -- slower.
     def count_proteins_biopython(self):
@@ -40,7 +56,9 @@ class Fasta:
         return num
 
 
-fasta_path = CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta"
-embeddings = Fasta(fasta_path)
-# embeddings.reformat()
-embeddings.fastas_from_fasta()
+
+
+# fasta_path = CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta"
+# embeddings = Fasta(fasta_path)
+# # embeddings.reformat()
+# embeddings.fastas_from_fasta()

@@ -86,7 +86,7 @@ class DiamondDataset(InMemoryDataset):
                 node_features[node] = {'{}'.format(layer): _x['mean_representations'][layer].tolist()}
             else:
                 node_features[node] = {'{}'.format(layer): [0] * 2560}
-                pt = pt+1
+                pt = pt + 1
 
         # add node features
         nx.set_node_attributes(G, node_features)
