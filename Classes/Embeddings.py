@@ -27,6 +27,8 @@ class Embeddings:
 
         self.uniclust_dbase = None
 
+        self.run()
+
     def create_database(self):
         mmseq_dbase_path = self.mmseq_dbase_root + "mmseq_dbase"
         if not is_file(mmseq_dbase_path):
@@ -39,7 +41,7 @@ class Embeddings:
         mmseq_dbase_path = self.mmseq_dbase_root + "mmseq_dbase"
         mmseq_cluster_path = self.mmseq_cluster_root + "mmseq_cluster"
         final_cluster = mmseq_cluster_path + ".tsv"
-        output = self.mmseq_cluster_root + "final" + ".tsv"
+        output = self.mmseq_cluster_root+ "final" + ".tsv"
         if not is_file(final_cluster):
             create_directory(self.mmseq_cluster_root)
             CMD = "mmseqs cluster {} {} tmp ; " \
@@ -53,11 +55,11 @@ class Embeddings:
     @staticmethod
     def one_line_format(input_file, output):
         """
-            Script takes the mm2seq cluster output and converts to representative seq1, seq2, seq3 ....
+             Script takes the mm2seq cluster output and converts to representative seq1, seq2, seq3 ....
             :param output:
             :param input_file: The clusters as csv file
             :return: None
-        """
+            """
         data = {}
         with open(input_file) as file:
             lines = file.read().splitlines()
@@ -79,7 +81,7 @@ class Embeddings:
             fasta_name = fasta.split(".")[0]
             CMD = "hhblits -i query.fasta -d {} -oa3m msas/{}.a3m -cpu 4 -n 2".format(self.uniclust_dbase, fasta_name)
             print(CMD)
-            # subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
+            #subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
 
     # generate msa from cluster
     def msa_from_cluster(self):
@@ -108,13 +110,12 @@ class Embeddings:
     # generate embeddings
     def generate_embeddings(self):
         # name model output dir, embedding layer 1, embedding layer 2, batch
-        models = (
-        ("esm_msa_1b", "esm_msa1b_t12_100M_UR50S", "msa", CONSTANTS.ROOT_DIR + "embedding/esm_msa_1b", 11, 12, 10),
-        ("esm_2", "esm2_t48_15B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm2_t48", 47, 48, 10),
-        ("esm_2", "esm2_t36_3B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm_t36", 35, 36, 100))
+        models = (("esm_msa_1b", "esm_msa1b_t12_100M_UR50S", "msa", CONSTANTS.ROOT_DIR + "embedding/esm_msa_1b", 11, 12, 10),
+                  ("esm_2", "esm2_t48_15B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm2_t48", 47, 48, 10),
+                  ("esm_2", "esm2_t36_3B_UR50D", self.fasta, CONSTANTS.ROOT_DIR + "embedding/esm_t36", 35, 36, 50))
         for model in models[2:]:
             if model[0] == "esm_msa_1b":
-                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok " \
+                CMD = "python {} {} {} {} --repr_layers {} {} --include mean per_tok contacts " \
                       "--toks_per_batch {} ".format(CONSTANTS.ROOT + "external/extract.py", model[1], model[2],
                                                     model[3], model[4], model[5], model[6])
             else:
@@ -126,5 +127,17 @@ class Embeddings:
             subprocess.call(CMD, shell=True, cwd="{}".format(self.dir))
 
     def run(self):
-        self.create_database()
-        self.generate_cluster()
+        if self.session == "training":
+            # self.create_database()
+            # self.generate_cluster()
+            # self.generate_msas()
+            self.generate_embeddings()
+        else:
+            pass
+            # self.search()
+
+
+kwargs = {
+    'fasta': CONSTANTS.ROOT_DIR + "testfasta"
+}
+embeddings = Embeddings(**kwargs)

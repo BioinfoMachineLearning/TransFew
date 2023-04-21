@@ -13,14 +13,14 @@ amino_acids = {
 }
 
 root_terms = {"GO:0008150", "GO:0003674", "GO:0005575"}
-ontologies = ("cc", "mf", "bp")
 
 exp_evidence_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", "HTP", "HDA", "HMP", "HGI", "HEP"}
 
 ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
-ROOT_DIR_EXT = "/media/fbqc9/Icarus/"
+ROOT_DIR = "D:/Workspace/python-3/TransFun2/"
 
 ROOT = "/home/fbqc9/PycharmProjects/TransFun2/"
+ROOT = "D:/Workspace/python-3/TransFun2/"
 
 NAMESPACES = {
     "cc": "cellular_component",
@@ -45,4 +45,3 @@ NAMES = {
     "mf": "Molecular Function",
     "bp": "Biological Process"
 }
-

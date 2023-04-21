@@ -28,6 +28,21 @@ def create_seqrecord(id="", name="", description="", seq=""):
     return record
 
 
+def remove_ungenerated_esm2_daisy_script(fasta_file, generated_directory):
+    import os
+    # those generated
+    gen = os.listdir(generated_directory)
+    gen = set([i.split(".")[0] for i in gen])
+
+    seq_records = []
+
+    input_seq_iterator = SeqIO.parse(fasta_file, "fasta")
+    for record in input_seq_iterator:
+        uniprot_id = extract_id(record.id)
+        seq_records.append(create_seqrecord(id=uniprot_id, seq=str(record.seq)))
+
+    print(len(seq_records), len(gen), len(set(seq_records).difference(gen)))
+
 def filtered_sequences(fasta_file):
     """
          Script is used to create fasta files based on alphafold sequence, by replacing sequences that are different.
