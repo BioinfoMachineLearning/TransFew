@@ -94,14 +94,6 @@ class MLP(nn.Module):
         return x
 
 
-def get_layer_shapes(**kwargs):
-    key = {'esm2_t48': 'esm', 'msa_1b': 'msa', 'interpro': 'interpro'}
-    if kwargs['full']:
-        layers = getattr(config, "{}_layers_{}_{}".format(key[kwargs['sub_model']], kwargs['group'], kwargs['ont']))
-    else:
-        layers = getattr(config, "{}_layers_{}".format(key[kwargs['sub_model']], kwargs['ont']))
-    return layers
-
 class TFun_submodel(nn.Module):
     def __init__(self, **kwargs):
         super(TFun_submodel, self).__init__()
@@ -109,21 +101,20 @@ class TFun_submodel(nn.Module):
         self.ont = kwargs['ont']
         self.device = kwargs['device']
         self.sub_model = kwargs['sub_model']
-        kwargs['full'] = kwargs.get('full', False)
-        self.full = kwargs['full']
+        self.full = kwargs.get('full', False)
         self.group = kwargs['group']
         self.sigmoid = Sigmoid()
 
         if self.sub_model == 'interpro':
-            interpro_layers = get_layer_shapes(**kwargs)
+            interpro_layers = getattr(config, "interpro_layers_{}_{}".format(self.group, self.ont))
             self.interpro_mlp = MLP(layers = interpro_layers, in_dropout=0.1)
             
         if self.sub_model == 'msa_1b':
-            msa_layers = get_layer_shapes(**kwargs)
+            msa_layers = getattr(config, "msa_layers_{}_{}".format(self.group, self.ont))
             self.msa_mlp = MLP(layers = msa_layers, in_dropout=0.0)
             
         if self.sub_model == 'esm2_t48':
-            esm_layers = get_layer_shapes(**kwargs)
+            esm_layers = getattr(config, "esm_layers_{}_{}".format(self.group, self.ont))
             self.esm_mlp = MLP(layers = esm_layers, in_dropout=0.1)
            
 
@@ -188,23 +179,21 @@ class LabelEncoder(torch.nn.Module):
         return x
 
 
-class Bilinear(nn.Module):
-
-    def __init__(self, feature_size, label_size=None, embedding_size=None):
-        super(Bilinear, self).__init__()
-
-        self.features_linear = nn.Linear(feature_size, 2000, bias=False)
-        self.labels_linear = nn.Linear(2957, 2000, bias=False)
-        self.final = nn.Linear(2957, 2957, bias=False)
-
-
-    def forward(self, feature_embedding, label_embedding):
-        x_1 = self.features_linear(feature_embedding)
-        x_2 = self.labels_linear(label_embedding)
-        x = torch.matmul(x_1, x_2.t())
-        x = self.final(x)
+def load_submodel(ckp_pth, **kwargs):
+        x = TFun_submodel(**kwargs)
+        if kwargs['load_weights']:
+            x = load_ckp(ckp_pth.format(kwargs['sub_model'].format(kwargs['group'])), 
+                         x, optimizer=None, lr_scheduler=None, best_model=False, model_only=True)
         return x
 
+
+def map_device_location(device):
+    if device == "cpu":
+        return 
+    elif device == "cuda:0":
+        return 
+    elif device == "cuda:1":
+        return
 
 class Attention(nn.Module):
 
@@ -237,71 +226,58 @@ class Attention(nn.Module):
         attention = self.softmax(scores)
         values = torch.matmul(attention, v)
 
-
-        # print(torch.topk(attention, 7, dim=1)[0])
-        # print(torch.topk(attention, 7, dim=1, largest=False)[0])
-
-        # attention = self.sigmoid(scores)
-        # print(attention.shape)
-
-
-        #print(torch.topk(attention, 5, dim=1))
-        #print(torch.topk(attention, 5, dim=1, largest=False))
-
         sum_out = values + q
         proj_out = self.final(sum_out)
         return proj_out, attention
 
 
-def scatter_accross(ont, shape, **kwargs):
+def scatter_accross(ont, shape, concat, **kwargs):
 
-    device = kwargs['freq_scores'].device
-    batch_size = kwargs['freq_scores'].shape[0]
-    
+    device = kwargs['esm_freq_out'].device
+    batch_size = kwargs['esm_freq_out'].shape[0]
     freq_indicies = kwargs['freq_indicies'].repeat(batch_size, 1)
     rare_indicies = kwargs['rare_indicies'].repeat(batch_size, 1)
+    
 
-    des = torch.zeros(batch_size, shape, 
-                      dtype=kwargs['freq_scores'].dtype, 
-                      device=device)
+    esm_out = torch.zeros(batch_size, shape, dtype=kwargs['esm_freq_out'].dtype, 
+                          device=device)
+    esm_out = esm_out.scatter_(1, freq_indicies, kwargs['esm_freq_out'])
+    esm_out = esm_out.scatter_(1, rare_indicies, kwargs['esm_rare_out'])
 
-    des = des.scatter_(1, freq_indicies, kwargs['freq_scores'])
-    des = des.scatter_(1, rare_indicies, kwargs['rare_scores'])
+    msa_out = torch.zeros(batch_size, shape, dtype=kwargs['msa_freq_out'].dtype, 
+                          device=device)
+    msa_out = msa_out.scatter_(1, freq_indicies, kwargs['msa_freq_out'])
+    msa_out = msa_out.scatter_(1, rare_indicies, kwargs['msa_rare_out'])
+
+    interpro_out = torch.zeros(batch_size, shape, dtype=kwargs['interpro_freq_out'].dtype, 
+                          device=device)
+    interpro_out = interpro_out.scatter_(1, freq_indicies, kwargs['interpro_freq_out'])
+    interpro_out = interpro_out.scatter_(1, rare_indicies, kwargs['interpro_rare_out'])
 
 
     # add last bacth of biological process
     if ont == 'bp':
-        rare_indicies_2 = kwargs['rare_indicies_2']
-        rare_indicies_2 = rare_indicies_2.repeat(batch_size, 1)
-        des = des.scatter_(1, rare_indicies_2, kwargs['rare_scores_2'])
+        rare_indicies_2 = kwargs['rare_indicies_2'].repeat(batch_size, 1)
 
-    return des
+        esm_out = esm_out.scatter_(1, rare_indicies_2, kwargs['esm_rare_out_2'])
+        msa_out = msa_out.scatter_(1, rare_indicies_2, kwargs['msa_rare_out_2'])
+        interpro_out = interpro_out.scatter_(1, rare_indicies_2, kwargs['interpro_rare_out_2'])
 
+    if concat == 'concat': # just concatenate
+        x = torch.cat((esm_out, msa_out, interpro_out), 1)
+    elif concat == "mean":
+        _batches = torch.arange(batch_size)
+        batches = torch.cat((_batches, _batches, _batches), 0).to(device)
+        x = torch.cat((esm_out, msa_out, interpro_out), 0)
+        x = net_utils.get_pool(pool_type='mean')(x, batches)
+    elif concat == "max":
+        _batches = torch.arange(batch_size)
+        batches = torch.cat((_batches, _batches, _batches), 0).to(device)
+        x = torch.cat((esm_out, msa_out, interpro_out), 0)
+        x = net_utils.get_pool(pool_type='max')(x, batches)
 
-    '''
-    #   src = torch.rand(src.shape[0], src.shape[1], dtype=src.dtype, device=src.device)
-    tiled_indicies = indicies.repeat(shape[0], 1)
-    des = torch.zeros(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    # des = torch.ones(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    # des = torch.rand(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    final = des.scatter_(1, tiled_indicies, src)'''
-    '''
-    print(final)
-    print(src.shape, tiled_indicies.shape)
-    x = torch.index_select(final, 1, indicies)
-    print(torch.all(x.eq(src)))
-    print(x)
-    print(src)
-    exit()
-    '''
+    return x
 
-
-def load_submodel(ckp_pth, **kwargs):
-        x = TFun_submodel(**kwargs)
-        if kwargs['load_weights']:
-            x = load_ckp(ckp_pth.format(kwargs['sub_model'].format(kwargs['group'])), x, 
-                         optimizer=None, lr_scheduler=None, best_model=False, model_only=True)
-        return x
 
 class TFun(nn.Module):
     def __init__(self, **kwargs):
@@ -312,7 +288,7 @@ class TFun(nn.Module):
         self.full_indicies = kwargs['full_indicies'].to(self.device)
         self.freq_indicies = kwargs['freq_indicies'].to(self.device)
         self.rare_indicies = kwargs['rare_indicies'].to(self.device)
-        self.rare_indicies_2 =  kwargs['rare_indicies_2'].to(self.device) if  self.ont == 'bp' else None
+        self.rare_indicies_2 =  kwargs['rare_indicies_2'].to(self.device) if self.ont =="bp" else None
         self.out_shape = getattr(config, "{}_out_shape".format(self.ont))
         self.label_features = kwargs['label_features']
         self.dropout = nn.Dropout(0.1)
@@ -322,100 +298,147 @@ class TFun(nn.Module):
         kwargs['full'] = True
         kwargs['load_weights'] = False
 
+
+        # esm submodels
         kwargs['sub_model'] = 'esm2_t48'
         kwargs['group'] = 'freq'
         self.esm_freq_mlp = load_submodel(ckp_pth, **kwargs)
-        self.esm_freq_mlp = TFun_submodel(**kwargs)
         
-
         kwargs['sub_model'] = 'esm2_t48'
         kwargs['group'] = 'rare'
-        self.esm_rare_mlp = TFun_submodel(**kwargs)
         self.esm_rare_mlp = load_submodel(ckp_pth, **kwargs)
 
 
+        # interpro
+        kwargs['sub_model'] = 'interpro'
+        kwargs['group'] = 'freq'
+        self.interpro_freq_mlp = load_submodel(ckp_pth, **kwargs)
+
+        kwargs['sub_model'] = 'interpro'
+        kwargs['group'] = 'rare'
+        self.interpro_rare_mlp = load_submodel(ckp_pth, **kwargs)
+        
+        
+        # msa
+        kwargs['sub_model'] = 'msa_1b'
+        kwargs['group'] = 'freq'
+        self.msa_freq_mlp = load_submodel(ckp_pth, **kwargs)
+
+        kwargs['sub_model'] = 'msa_1b'
+        kwargs['group'] = 'rare'
+        self.msa_rare_mlp = load_submodel(ckp_pth, **kwargs)
+
+
+        # Add extra for BP
         if self.ont == 'bp':
-            kwargs['sub_model'] = 'esm2_t48'
             kwargs['group'] = 'rare_2'
+
+            kwargs['sub_model'] = 'esm2_t48'
             self.esm_rare_mlp_2 = load_submodel(ckp_pth, **kwargs)
+
+            kwargs['sub_model'] = 'interpro'
+            self.interpro_rare_mlp_2 = load_submodel(ckp_pth, **kwargs)
+
+            kwargs['sub_model'] = 'msa_1b'
+            self.msa_rare_mlp_2 = load_submodel(ckp_pth, **kwargs)
+
 
 
         if self.label_features == 'biobert':
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
+            self.joint_embedding = Attention(concat_hidden=self.out_shape*3, 
                                           label_dimension=768,
-                                           embedding_size=256,
+                                           embedding_size=512,
                                            out_proj = self.out_shape)
         elif self.label_features == 'x':
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
+            self.joint_embedding = Attention(concat_hidden=self.out_shape*3, 
                                            label_dimension=self.out_shape, # no of classes
-                                           embedding_size=256,
+                                           embedding_size=768,
                                            out_proj = self.out_shape)
         elif self.label_features == 'gcn':
             self.label_embedding = GAE(LabelEncoder(768, 1024, features='biobert'))
             self.label_embedding = load_ckp(ckp_pth.format("label"), self.label_embedding, optimizer=None, lr_scheduler=None, best_model=True, model_only=True)
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
+            self.joint_embedding = Attention(concat_hidden=self.out_shape*3, 
                                            label_dimension=1024, 
                                            embedding_size=256 if self.ont == 'bp' else 256, #768,#2048,
                                            out_proj = self.out_shape)
         elif self.label_features == 'linear':
-            self.joint_embedding_1 = Attention(concat_hidden=self.out_shape, 
+            self.joint_embedding_1 = Attention(concat_hidden=self.out_shape*3, 
                                             label_dimension=768,
-                                            embedding_size=128,
+                                            embedding_size=384,
                                             out_proj = self.out_shape)
             
-            self.joint_embedding_2 = Attention(concat_hidden=self.out_shape, 
+            self.joint_embedding_2 = Attention(concat_hidden=self.out_shape*3, 
                                             label_dimension=self.out_shape, # no of classes
-                                            embedding_size=128,
+                                            embedding_size=384,
                                             out_proj = self.out_shape)
             self.final = nn.Linear(self.out_shape*2, self.out_shape)
 
         self.graph_path = CONSTANTS.ROOT_DIR + '{}/graph.pt'.format(self.ont)
-        # self.label_embedd_data = torch.load(self.graph_path)
+        # self.label_embedd_data = torch.load(self.graph_path, map_location=map_device_location()lambda storage, loc: storage.cuda(1))
         self.label_embedd_data = torch.load(self.graph_path, map_location=torch.device(self.device))
     
         self.gelu = nn.GELU()
         self.sigmoid = Sigmoid()
-           
+    
 
     def forward(self, data):
-        freq_out = self.esm_freq_mlp(data[0].to(self.device))
-        rare_out = self.esm_rare_mlp(data[0].to(self.device))
-        extraargs = {}
+        esm_freq_out = self.esm_freq_mlp(data[0].to(self.device))
+        esm_rare_out = self.esm_rare_mlp(data[0].to(self.device))
+
+        msa_freq_out = self.msa_freq_mlp(data[1].to(self.device))
+        msa_rare_out = self.msa_rare_mlp(data[1].to(self.device))
+
+        interpro_freq_out = self.interpro_freq_mlp(data[3].to(self.device))
+        interpro_rare_out = self.interpro_rare_mlp(data[3].to(self.device))
 
         extraargs = {
-            'freq_scores': freq_out, 
-            'rare_scores': rare_out,
-            'freq_indicies': self.freq_indicies, 
-            'rare_indicies': self.rare_indicies
+            'esm_freq_out': esm_freq_out, 'esm_rare_out': esm_rare_out,
+            'msa_freq_out': msa_freq_out, 'msa_rare_out': msa_rare_out,
+            'interpro_freq_out': interpro_freq_out, 'interpro_rare_out': interpro_rare_out, 
+            'freq_indicies': self.freq_indicies, 'rare_indicies': self.rare_indicies
 
         }
 
         if self.ont == 'bp':
-            rare_out_2 = self.esm_rare_mlp_2(data[0].to(self.device))
-            extraargs['rare_scores_2'] = rare_out_2
+            esm_rare_out_2 = self.esm_rare_mlp_2(data[0].to(self.device))
+            msa_rare_out_2 = self.msa_rare_mlp_2(data[1].to(self.device))
+            interpro_rare_out_2 = self.interpro_rare_mlp_2(data[3].to(self.device))
+
+            extraargs['esm_rare_out_2'] = esm_rare_out_2
+            extraargs['msa_rare_out_2'] = msa_rare_out_2
+            extraargs['interpro_rare_out_2'] = interpro_rare_out_2
             extraargs['rare_indicies_2'] = self.rare_indicies_2
 
-        x = scatter_accross(self.ont, self.out_shape, **extraargs)
+    
+        if self.label_features == 'mean':
+            x = scatter_accross(self.ont, self.out_shape, concat="mean", **extraargs)
+        elif self.label_features == 'max':
+            x = scatter_accross(self.ont, self.out_shape, concat="max", **extraargs)
+        else:
+            x = scatter_accross(self.ont, self.out_shape, concat="concat", **extraargs)
 
-        if self.label_features == 'biobert':
-            z = self.label_embedd_data['biobert'].to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'x':
-            z = self.label_embedd_data['x'].to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'gcn':
-            z = self.label_embedding.encode(self.label_embedd_data['biobert'].to(self.device), 
-                                            self.label_embedd_data.edge_index.to(self.device)).to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'linear':
-            z_1 = self.label_embedd_data['biobert'].to(self.device)
-            z_2 = self.label_embedd_data['x'].to(self.device)
-            
-            x_1, att = self.joint_embedding_1(x, z_1)
-            x_2, att2 = self.joint_embedding_2(x, z_2)
-            x = torch.cat((x_1, x_2), 1)
-            x = self.final(x)
+            if self.label_features == 'biobert':
+                z = self.label_embedd_data['biobert'].to(self.device)
+                x, att = self.joint_embedding(x, z)
+            elif self.label_features == 'x':
+                z = self.label_embedd_data['x'].to(self.device)
+                x, att = self.joint_embedding(x, z)
+            elif self.label_features == 'gcn':
+                z = self.label_embedding.encode(self.label_embedd_data['biobert'].to(self.device), self.label_embedd_data.edge_index.to(self.device)).to(self.device)
+                x, att = self.joint_embedding(x, z)
+            elif self.label_features == 'linear':
+                z_1 = self.label_embedd_data['biobert'].to(self.device)
+                z_2 = self.label_embedd_data['x'].to(self.device)
+               
+                x_1 = self.joint_embedding_1(x, z_1)
+                x_2 = self.joint_embedding_2(x, z_2)
+                x = torch.cat((x_1, x_2), 1)
+                x, att = self.final(x)
 
         x = self.sigmoid(x)
-        # x = torch.index_select(x, 1, self.full_indicies)
         return x, att
+
+
+
+    
+
