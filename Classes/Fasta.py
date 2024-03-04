@@ -1,8 +1,11 @@
+import os
+import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 import CONSTANTS
+from Utils import count_proteins
 
 
 def create_seqrecord(id="", name="", description="", seq=""):
@@ -18,22 +21,25 @@ class Fasta:
     def __init__(self, fasta_path):
         self.fasta = fasta_path
 
-    def fasta_to_list(self):
+    def fasta_to_list(self, _filter=None):
         seqs = []
         input_seq_iterator = SeqIO.parse(self.fasta, "fasta")
         for record in input_seq_iterator:
-            seqs.append(create_seqrecord(id=record.id, seq=str(record.seq)))
+            seqs.append(create_seqrecord(id=extract_id(record.id), seq=str(record.seq)))
+
+        if _filter is not None:
+            seqs = [record for record in seqs if record.id in _filter]
         return seqs
     
-    def reformat(self):
-        seqs = self.fasta_to_list()
-        SeqIO.write(seqs, CONSTANTS.ROOT_DIR + "uniprot/{}.fasta".format("uniprot_fasta"), "fasta")
+    def reformat(self, _filter=None, output=""):
+        seqs = self.fasta_to_list(_filter=_filter)
+        SeqIO.write(seqs, output, "fasta")
 
     # Create individual fasta files from a large fasta file for hhblits alignment
-    def fastas_from_fasta(self, _filter=None):
-        seqs = self.fasta_to_list()
+    def fastas_from_fasta(self, _filter=None, out_dir=""):
+        seqs = self.fasta_to_list(_filter=_filter)
         for seq in seqs:
-            SeqIO.write(seq, CONSTANTS.ROOT_DIR + "uniprot/single_fasta/{}.fasta".format(seq.id), "fasta")
+            SeqIO.write(seq, out_dir + "/{}.fasta".format(seq.id), "fasta")
 
     # Removes unwanted proteins from fasta file
     def subset_from_fasta(self, output=None, max_seq_len=1022):
@@ -54,11 +60,3 @@ class Fasta:
     def count_proteins_biopython(self):
         num = len(list(SeqIO.parse(self.fasta, "fasta")))
         return num
-
-
-
-
-# fasta_path = CONSTANTS.ROOT_DIR + "uniprot/uniprot_fasta.fasta"
-# embeddings = Fasta(fasta_path)
-# # embeddings.reformat()
-# embeddings.fastas_from_fasta()

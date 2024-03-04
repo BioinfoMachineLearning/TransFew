@@ -1,0 +1,147 @@
+import os
+import pickle
+import numpy as np
+import obonet
+from sentence_transformers import SentenceTransformer
+import torch
+from transformers import AutoTokenizer, AutoModel
+import networkx as nx
+from torch_geometric.utils.convert import from_scipy_sparse_matrix
+from torch_geometric.data import Data
+
+ROOT_DIR = "/home/fbqc9/Workspace/DATA/"
+GO_PATH = ROOT_DIR + "/obo/go-basic.obo"
+
+
+def pickle_save(data, filename):
+    with open('{}.pickle'.format(filename), 'wb') as handle:
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def pickle_load(filename):
+    with open('{}.pickle'.format(filename), 'rb') as handle:
+        return pickle.load(handle)
+    
+
+def is_file(path):
+    return os.path.exists(path)
+
+
+def get_embedding_biobert(definitions):
+    model = SentenceTransformer('pritamdeka/S-PubMedBert-MS-MARCO')
+    embeddings = model.encode(definitions)
+    return embeddings
+    
+
+def get_embedding_bert(definitions):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased")
+    model = AutoModel.from_pretrained("bert-large-uncased").to(device)
+    tokenized_train = tokenizer(definitions, padding = True, truncation = True, return_tensors="pt").to(device)
+
+
+    with torch.no_grad():
+        hidden_train = model(**tokenized_train) 
+
+    cls_token = hidden_train.last_hidden_state[:,0,:]
+    return cls_token
+
+
+
+
+ontologies = ['cc', 'mf', 'bp']
+go_graph = obonet.read_obo(open(GO_PATH, 'r'))
+node_desc = dict(go_graph.nodes(data="def"))
+
+accepted_edges = set()
+unaccepted_edges = set()
+
+for edge in go_graph.edges:
+    if edge[2] == 'is_a' or edge[2] == 'part_of':
+        accepted_edges.add(edge)
+    else:
+        unaccepted_edges.add(edge)
+go_graph.remove_edges_from(unaccepted_edges)
+
+assert nx.is_directed_acyclic_graph(go_graph)
+
+
+
+# quality check to extract textual definition only(no refference)
+for i in node_desc:
+    assert node_desc[i].count('"') == 2
+
+
+
+for ontology in ontologies:
+
+    biobert_path = ROOT_DIR + '{}/biobert.pt'.format(ontology)
+    bert_path = ROOT_DIR + '{}/bert.pt'.format(ontology)
+    hierarchy_path = ROOT_DIR + '{}/hierarchy'.format(ontology)
+    save_path = ROOT_DIR + '{}/graph.pt'.format(ontology)
+    
+    print("Computing for {}".format(ontology))
+
+    go_terms = pickle_load(ROOT_DIR+"/{}/sorted_terms".format(ontology))
+
+    definitions = [node_desc[go_term].split('"')[1] for go_term in go_terms]
+
+    assert len(go_terms) == len(definitions)
+
+    if not is_file(biobert_path):
+        print("Generating Biobert")
+        biobert_embeddings = torch.from_numpy(get_embedding_biobert(definitions))
+        torch.save(biobert_embeddings, biobert_path)
+    else:
+        biobert_embeddings = torch.load(biobert_path)
+
+    if not is_file(bert_path):
+        print("Generating Bert")
+        tmp = []
+        for i in range(0, len(go_terms) + 1, 1000):
+            bert_embeddings = get_embedding_bert(definitions[i:i + 1000])
+            tmp.append(bert_embeddings)
+        bert_embeddings = torch.concat(tmp, dim=0).cpu()
+        torch.save(bert_embeddings, bert_path)
+    else:
+        bert_embeddings = torch.load(bert_path)
+    
+
+    if not is_file(hierarchy_path + ".pickle"):
+        print("Generating Hierarchy")
+        hierarchy = np.zeros((len(go_terms), len(go_terms)))
+        for rows in range(len(go_terms)):
+            for cols in range(len(go_terms)):
+                row = go_terms[rows]
+                col = go_terms[cols]
+        
+                if col in nx.descendants(go_graph, row).union(set([row, ])):
+                    hierarchy[rows, cols] = 1
+
+        pickle_save(hierarchy, ROOT_DIR + "{}/hierarchy".format(ontology))
+
+    else:
+        hierarchy = pickle_load(hierarchy_path)
+
+
+    subgraph = go_graph.subgraph(go_terms).copy()
+
+    A = nx.to_scipy_sparse_array(subgraph, nodelist=go_terms)
+    data = from_scipy_sparse_matrix(A)
+
+    hierarchy = torch.tensor(hierarchy, dtype=torch.float32)
+
+
+    print(biobert_embeddings)
+    print(bert_embeddings)
+    print(hierarchy)
+
+
+
+    data = Data(x=hierarchy, edge_index=data[0], \
+                biobert=biobert_embeddings, bert=bert_embeddings)
+    
+
+    torch.save(data, save_path)
+
