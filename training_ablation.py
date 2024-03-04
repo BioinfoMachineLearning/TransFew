@@ -14,7 +14,7 @@ from torch_geometric.loader import DataLoader
 from Dataset.Dataset import TransFunDataset
 import CONSTANTS
 from Dataset.FastDataset import FastTransFunDataset
-from models.model import TFun, TFun_submodel
+from models.model_ablation import TFun, TFun_submodel
 from Loss.Loss import HierarchicalLoss, DiceLoss
 from Utils import load_ckp, pickle_load, read_cafa5_scores, save_ckp
 import hparams as hparams
@@ -22,7 +22,6 @@ from torch.autograd import Variable
 from num2words import num2words
 warnings.filterwarnings("ignore", category=UserWarning)
 import collections
-import torch.nn.functional as F
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
@@ -34,16 +33,15 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=5000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.0001, help='Initial learning rate.') # 0.0001
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).') #5e-4
-parser.add_argument("--ont", default='cc', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='bp', type=str, help='Ontology under consideration')
 parser.add_argument('--train_batch', type=int, default=64, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=64, help='Validation batch size.')
 parser.add_argument('--submodel', type=str, default='full', help='Sub model to train')
 parser.add_argument("--group", default='freq', type=str, help='Frequent or Rare model')
 parser.add_argument("--load_weights", default=False, type=bool, help='Load weights from saved model')
 parser.add_argument("--save_weights", default=False, type=bool, help='Save model weights')
-parser.add_argument("--log_output", default=True, type=bool, help='Log output to weights and bias')
+parser.add_argument("--log_output", default=False, type=bool, help='Log output to weights and bias')
 parser.add_argument('--label_features', type=str, default='gcn', help='Sub model to train')
-parser.add_argument('--entropy_loss', type=str, default=0.1, help='Entropy_loss')
 
 torch.manual_seed(17)
 
@@ -79,7 +77,7 @@ else:
     full_term_indicies =  torch.tensor(full_term_indicies).to(device)
     freq_term_indicies = torch.tensor(freq_term_indicies).to(device)
     rare_term_indicies_2 = None
-
+    
 
 def count_params(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -145,7 +143,7 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
                     rare_labels = torch.index_select(labels, 1, rare_term_indicies)
                     labels = torch.index_select(labels.to(device), 1, full_term_indicies)
 
-                    class_weights = get_weights(labels, hyps[args.submodel]['weight_factor'])
+                    class_weights = get_weights(labels, 3)
 
                     # class_weights = class_weights * labels
                     # class_weights[class_weights==0] = 2
@@ -160,27 +158,14 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
                     output_freq = torch.index_select(output, 1, freq_term_indicies)
                     output_rare  = torch.index_select(output, 1, rare_term_indicies)
                     output = torch.index_select(output, 1, full_term_indicies)
-                    # att = torch.index_select(att.squeeze(1), 1, full_term_indicies)
+                    att = torch.index_select(att.squeeze(1), 1, full_term_indicies)
 
-                    entropy_loss = -torch.sum(output * torch.log(output), dim=1).mean()
+                    #entropy_loss = -torch.sum(output_rare * torch.log(output_rare), dim=1).mean()
                     loss = (criterion(output, labels) * class_weights).mean()
                     # attn_loss = (criterion(sigmoid(att), labels) * class_weights).mean()
 
-                    # klloss = (kl_loss(att, freq_labels)).mean()
 
-                    #print(_att)
-
-                    # print(torch.topk(_att, 7, dim=1))
-
-
-                    # print(klloss, loss, rare_loss, rare_loss)
-
-
-
-                    # loss =  rare_loss+freq_loss
-
-
-                    loss = loss + args.entropy_loss * entropy_loss
+                    #loss = loss + entropy_loss
                     # print(loss, entropy_loss)
         
                     loss.backward()
@@ -212,7 +197,7 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
                     elif args.group == 'rare':
                         labels = torch.index_select(labels.to(device), 1, rare_term_indicies)
 
-                    class_weights = get_weights(labels, hyps[args.submodel]['weight_factor'])
+                    class_weights = get_weights(labels, 3)
 
                     # print(torch.min(class_weights), torch.max(class_weights))
 
@@ -288,8 +273,6 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
 
                     loss = (criterion(output, labels)).mean()
                     entropy_loss = -torch.sum(output * torch.log(output), dim=1).mean()
-
-                    loss = loss + args.entropy_loss * entropy_loss
 
                     val_loss += loss.data.item()
                     a, p, r, f, roc  = compute_scores(freq_labels, output_freq > 0.5)
@@ -456,19 +439,15 @@ kwargs = {
 if args.submodel == 'full':
     model = TFun(**kwargs)
     for name, param in model.named_parameters():
-        '''if name.startswith("interpro"):
+        if name.startswith("interpro"):
             param.requires_grad = False
         if name.startswith("msa_mlp"):
             param.requires_grad = False
-        if name.startswith("diamond_mlp"):
-            param.requires_grad = False
         if name.startswith("esm_mlp"):
             param.requires_grad = False
-        if name.startswith("string_mlp"):
-            param.requires_grad = False'''
         if name.startswith("label_embedding"):
             param.requires_grad = False
-    ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}_{}/'.format(args.ont, args.submodel, kwargs['label_features'])
+    ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}_{}_combined/'.format(args.ont, args.submodel, kwargs['label_features'])
     ckp_pth = ckp_dir + "current_checkpoint.pt"
 else:
     model = TFun_submodel(**kwargs)
@@ -476,9 +455,9 @@ else:
     ckp_pth = ckp_dir + "current_checkpoint.pt"
 
 
-print("Ontology: {}, \n Learning rate: {}, Leraning rate scheduler: {}, \n Submodel: {}, Group: {}, \n Batch size: {}, \n Weight Decay: {}  Class weight factor: {}, \n Device: {}, \
+print("Ontology: {}, \n Learning rate: {}, \n Submodel: {}, Group: {}, \n Batch size: {}, \n Weight Decay: {}, \n Device: {}, \
       Label Embedding: {}, \n Number of Parameters: {}, \n Number of terms: {} Freq terms: {}, Rare terms: {}"\
-      .format(args.ont, args.lr, hyps[args.submodel]['lr_scheduler'], args.submodel, args.group, args.train_batch, args.weight_decay, hyps[args.submodel]['weight_factor'], device, args.label_features, num2words(count_params(model)), full_term_indicies.shape, freq_term_indicies.shape, rare_term_indicies.shape))
+      .format(args.ont, args.lr, args.submodel, args.group, args.train_batch, args.weight_decay, device, args.label_features, num2words(count_params(model)), full_term_indicies.shape, freq_term_indicies.shape, rare_term_indicies.shape))
 
 
 # lamb = torch.nn.Parameter(torch.tensor(2.0), requires_grad=True)
@@ -488,15 +467,14 @@ for name, param in model.named_parameters():
 
 
 
-print(model)
+# print(model)
 model.to(device)
 optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
 criterion = torch.nn.BCELoss(reduction='none')
-kl_loss = torch.nn.KLDivLoss(reduction="none")
 # criterion1 = DiceLoss()
-lr_scheduler = CosineAnnealingLR(optimizer, hyps[args.submodel]['lr_scheduler'])
+lr_scheduler = CosineAnnealingLR(optimizer, 50)
 
 
 if args.load_weights and os.path.exists(ckp_pth):
@@ -516,7 +494,7 @@ config = {
 }
 
 if args.log_output:
-    wandb.init(project="TransZero", entity='frimpz', config=config, name="{}_{}_{}_{}_{}".format(args.ont, args.submodel, args.label_features, args.group, args.entropy_loss))
+    wandb.init(project="TransZero", entity='frimpz', config=config, name="{}_{}_{}_{}".format(args.ont, args.submodel, args.label_features, "combined"))
 
 
 train_model(start_epoch=current_epoch, min_val_loss=min_val_loss, 

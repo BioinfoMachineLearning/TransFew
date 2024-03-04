@@ -1,0 +1,25 @@
+
+
+bp.x -> 2325219
+bp.biobert -> 
+bp.linear -> 3017061
+bp.gcn -> 
+
+mf.linear -> 
+mf.gcn -> 
+mf.biobert -> 
+mf.x -> 
+
+cc.linear -> 
+cc.gcn -> 
+cc.biobert -> 
+cc.x -> 
+
+
+cc.log -> 
+
+
+t1 -> goa_uniprot_all.gaf.212 -> !date-generated: 2022-11-17 13:42 
+
+t2 -> !date-generated: 2023-07-12 11:49 
+

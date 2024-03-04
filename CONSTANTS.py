@@ -16,8 +16,9 @@ root_terms = {"GO:0008150", "GO:0003674", "GO:0005575"}
 
 exp_evidence_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", "HTP", "HDA", "HMP", "HGI", "HEP"}
 
-ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
-ROOT_DIR = "D:/Workspace/python-3/TransFun2/"
+# ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
+# ROOT_DIR = "D:/Workspace/python-3/TransFun2/"
+ROOT_DIR = "/home/fbqc9/Workspace/DATA/"
 
 ROOT = "/home/fbqc9/PycharmProjects/TransFun2/"
 ROOT = "D:/Workspace/python-3/TransFun2/"
@@ -45,3 +46,11 @@ NAMES = {
     "mf": "Molecular Function",
     "bp": "Biological Process"
 }
+
+GO_FILTERS = {
+    'cc': (25, 4),
+    'mf': (30, 4),
+    'bp': (30, 8)
+}
+
+go_graph_path = ROOT_DIR + "/obo/go-basic.obo"
