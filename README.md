@@ -1,4 +1,4 @@
-# TransFun2
+# TransFew
 Transformer for protein function prediction (version 2)
 
 
