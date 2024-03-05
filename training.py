@@ -41,7 +41,7 @@ parser.add_argument('--submodel', type=str, default='full', help='Sub model to t
 parser.add_argument("--group", default='freq', type=str, help='Frequent or Rare model')
 parser.add_argument("--load_weights", default=False, type=bool, help='Load weights from saved model')
 parser.add_argument("--save_weights", default=False, type=bool, help='Save model weights')
-parser.add_argument("--log_output", default=True, type=bool, help='Log output to weights and bias')
+parser.add_argument("--log_output", default=False, type=bool, help='Log output to weights and bias')
 parser.add_argument('--label_features', type=str, default='gcn', help='Sub model to train')
 parser.add_argument('--entropy_loss', type=str, default=0.1, help='Entropy_loss')
 
@@ -180,7 +180,7 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
                     # loss =  rare_loss+freq_loss
 
 
-                    loss = loss + args.entropy_loss * entropy_loss
+                    # loss = loss + args.entropy_loss * entropy_loss
                     # print(loss, entropy_loss)
         
                     loss.backward()
