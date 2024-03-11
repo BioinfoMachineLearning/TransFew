@@ -1,11 +1,15 @@
+import os
+import shutil
+import subprocess
 from matplotlib import pyplot as plt, rcParams
 import numpy as np
-from Utils import pickle_save, pickle_load
+from Utils import count_proteins, create_directory, pickle_save, pickle_load
 from collections import Counter
 import math
 import CONSTANTS
 import obonet
 import networkx as nx
+from Bio import SeqIO
 
 
 '''
@@ -64,7 +68,7 @@ def plot_curves(data, ontology):
         "esm2_t48": "ESM", "msa_1b": "MSA", 
         "interpro": "Interpro", "tale": "Tale", 
         "netgo": "NetGO3", "full_x": "FULL Hierachical", 
-        "full_biobert": "Full Biobert", "full_gcn": "TransFew", 
+        "full_biobert": "Full Biobert", "full_gcn": "Full GCN", 
         "full_linear": "Full Linear", "naive": "Naive", 
     }
 
@@ -83,18 +87,17 @@ def plot_curves(data, ontology):
                 break
 
         ax.plot(recalls[1:], precisions[1:], color=color,
-                label=f'{method_dic[method]}: fmax {fmax: 0.2f}, AUPR {aupr:0.2f})')
+                label=f'{method_dic[method]}: Coverage {coverage: 0.2f}, fmax {fmax: 0.2f}, AUPR {aupr:0.2f})')
         ax.plot(recalls[fmax_pos], precisions[fmax_pos], 'ro')#, color='black')
         ax.scatter(recalls[fmax_pos], precisions[fmax_pos], s=rcParams['lines.markersize'] ** 3, facecolors='none',
                    edgecolors='black')
 
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.0])
-    ax.tick_params(axis='both', which='major', labelsize=16)
-    ax.set_xlabel('Recall', fontsize=18)
-    ax.set_ylabel('Precision', fontsize=18)
-    ax.set_title(CONSTANTS.NAMES[ontology], fontsize=20)
-    ax.legend(loc="upper left",  ncols=2, fontsize=16)
+    ax.set_xlabel('Recall')
+    ax.set_ylabel('Precision')
+    ax.set_title("Area Under the Precision-Recall curve -- {}".format(ontology))
+    ax.legend(loc="upper right")
     plt.savefig("plots/results_{}.png".format(ontology))
 
 
@@ -225,12 +228,7 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
     ont_terms = nx.ancestors(go_graph, parent_term).union(set([parent_term]))
     ics, ic_norm  = compute_ics(ontology, go_graph)
 
-    # methods = ["naive", "msa_1b", "interpro", "esm2_t48", "tale", "netgo", "full_gcn", "full_combined_gcn"] # , "full_mean", "full_max"
     methods = ["naive", "tale", "netgo", "full_gcn"]
-    # methods = ["full_gcn"]
-
-    # methods = ["full_gcn"] # , "full_mean", "full_max"
-    # methods = ["esm2_t48", "msa_1b", "interpro", "full_x", "full_biobert", "full_gcn", "full_linear"] # , "full_mean", "full_max"
 
     colors = ["grey", "orange", "steelblue", "indigo", "blue", "red", "darkgreen", "magenta", "gold", "teal", " black"]
 
@@ -272,7 +270,92 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
         # print(f'Fmax: {fmax:0.3f}, threshold: {tmax}, AUPR: {aupr:0.3f}')
 
 
-    plot_curves(dic, ontology=ontology)
+    #plot_curves(dic, ontology=ontology)
+        
+
+def filter_fasta(proteins, infile, outfile):
+    seqs = []
+    input_seq_iterator = SeqIO.parse(infile, "fasta")
+
+    for pos, record in enumerate(input_seq_iterator):
+        if record.id in proteins:
+            seqs.append(record)
+    SeqIO.write(seqs, outfile, "fasta")
+
+
+def extract_from_results(infile):
+    file = open(infile)
+    lines = []
+    for _line in file.readlines():
+        line = _line.strip("\n").split("\t")
+        lines.append((line[0], line[1], line[3]))
+    file.close()
+    return lines
+
+
+def get_seq_less(ontology, test_proteins, seq_id=0.3):
+    # mmseqs createdb <i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB> [options]
+
+    full_train_fasta = "/home/fbqc9/Workspace/DATA/uniprot/train_sequences.fasta"
+    test_fasta = "/home/fbqc9/Workspace/DATA/uniprot/test_fasta.fasta"
+
+    train_data =  list(pickle_load("/home/fbqc9/Workspace/DATA/{}/train_proteins".format(ontology)))
+    valid_data =  list(pickle_load("/home/fbqc9/Workspace/DATA/{}/validation_proteins".format(ontology)))
+    train_data = set(train_data + valid_data) # set for fast lookup
+    test_proteins = set(test_proteins) # set for fast lookup
+
+
+    # make temporary directory
+    wkdir = "/home/fbqc9/Workspace/TransFun2/evaluation/seqID/{}".format(seq_id)
+    create_directory(wkdir)
+
+    target_fasta = wkdir+"/target_fasta"
+    query_fasta = wkdir+"/query_fasta"
+    filter_fasta(train_data, full_train_fasta, target_fasta)
+    filter_fasta(test_proteins, test_fasta, query_fasta)
+
+    assert len(train_data) == count_proteins(target_fasta)
+    assert len(test_proteins) == count_proteins(query_fasta)
+
+    print("Creating target Database")
+    target_dbase = wkdir+"/target_dbase"
+    CMD = "mmseqs createdb {} {}".format(target_fasta, target_dbase)
+    subprocess.call(CMD, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+    print("Creating query Database")
+    query_dbase = wkdir+"/query_dbase"
+    CMD = "mmseqs createdb {} {}".format(query_fasta, query_dbase)
+    subprocess.call(CMD, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+    print("Mapping very similar sequences")
+    result_dbase = wkdir+"/result_dbase"
+    CMD = "mmseqs map {} {} {} {} --min-seq-id {}".\
+        format(query_dbase, target_dbase, result_dbase, wkdir, seq_id)
+    subprocess.call(CMD, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+    bestResultDB = wkdir+"/bestResultDB"
+    CMD = "mmseqs filterdb {} {} --extract-lines 1".format(result_dbase, bestResultDB)
+    subprocess.call(CMD, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+    final_res = wkdir+"/final_res.tsv"
+    CMD = "mmseqs createtsv {} {} {} {}".format(query_dbase, target_dbase, bestResultDB, final_res)
+    subprocess.call(CMD, shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+
+    lines = extract_from_results(final_res)
+
+    shutil.rmtree(wkdir)
+
+    querys, targets, seq_ids = zip(*lines)
+
+    querys = set(querys)
+    targets = set(targets)
+
+    assert len(train_data.intersection(querys)) == 0
+    assert len(test_proteins.intersection(targets)) == 0
+
+    # the proteins with less than X seq identity to the training set
+    return test_proteins.difference(querys)
 
 
 
@@ -281,7 +364,6 @@ go_graph = get_graph()
 test_group = pickle_load(CONSTANTS.ROOT_DIR + "test/t3/test_proteins")
 test_groundtruth = pickle_load(CONSTANTS.ROOT_DIR + "test/t3/groundtruth")
 
-
 # add limited known and no known
 test_group = {
     'bp': test_group['LK_bp'] | test_group['NK_bp'],
@@ -289,24 +371,26 @@ test_group = {
     'cc': test_group['LK_cc'] | test_group['NK_cc']
 }
 
-
-
+to_remove = {'C0HM98', 'C0HM97', 'C0HMA1', 'C0HM44'}
 titles = {
     "cc": "Cellular Component",
     "mf": "Molecular Function",
     "bp": "Biological Process",
 }
-to_remove = {'C0HM98', 'C0HM97', 'C0HMA1', 'C0HM44'}
+
+
+final_out = {}
 
 def main():
     for ont in test_group:
 
-        if ont == "cc" or ont == "mf":
-            continue
     
         print("###############{}######################".format(ont))
 
         proteins = set(test_group[ont]).difference(to_remove)
+
+        proteins = get_seq_less(ontology=ont, test_proteins=proteins)
+
 
         print("Evaluating:{}, total number of proteins:{}".format(ont, len(proteins)))
 

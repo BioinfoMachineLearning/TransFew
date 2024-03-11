@@ -83,18 +83,17 @@ def plot_curves(data, ontology):
                 break
 
         ax.plot(recalls[1:], precisions[1:], color=color,
-                label=f'{method_dic[method]}: fmax {fmax: 0.2f}, AUPR {aupr:0.2f})')
+                label=f'{method_dic[method]}: Coverage {coverage: 0.2f}, fmax {fmax: 0.2f}, AUPR {aupr:0.2f})')
         ax.plot(recalls[fmax_pos], precisions[fmax_pos], 'ro')#, color='black')
         ax.scatter(recalls[fmax_pos], precisions[fmax_pos], s=rcParams['lines.markersize'] ** 3, facecolors='none',
                    edgecolors='black')
 
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.0])
-    ax.tick_params(axis='both', which='major', labelsize=16)
-    ax.set_xlabel('Recall', fontsize=18)
-    ax.set_ylabel('Precision', fontsize=18)
-    ax.set_title(CONSTANTS.NAMES[ontology], fontsize=20)
-    ax.legend(loc="upper left",  ncols=2, fontsize=16)
+    ax.set_xlabel('Recall')
+    ax.set_ylabel('Precision')
+    ax.set_title("Area Under the Precision-Recall curve -- {}".format(ontology))
+    ax.legend(loc="upper right")
     plt.savefig("plots/results_{}.png".format(ontology))
 
 
@@ -225,13 +224,8 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
     ont_terms = nx.ancestors(go_graph, parent_term).union(set([parent_term]))
     ics, ic_norm  = compute_ics(ontology, go_graph)
 
-    # methods = ["naive", "msa_1b", "interpro", "esm2_t48", "tale", "netgo", "full_gcn", "full_combined_gcn"] # , "full_mean", "full_max"
-    methods = ["naive", "tale", "netgo", "full_gcn"]
-    # methods = ["full_gcn"]
-
-    # methods = ["full_gcn"] # , "full_mean", "full_max"
-    # methods = ["esm2_t48", "msa_1b", "interpro", "full_x", "full_biobert", "full_gcn", "full_linear"] # , "full_mean", "full_max"
-
+    methods = ["interpro", "msa_1b", "esm2_t48", "full_gcn", "full_combined_gcn"] # , "full_mean", "full_max"
+    
     colors = ["grey", "orange", "steelblue", "indigo", "blue", "red", "darkgreen", "magenta", "gold", "teal", " black"]
 
     dic = { method: {'color': colors[pos]} for pos, method in enumerate(methods)}
@@ -272,7 +266,7 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
         # print(f'Fmax: {fmax:0.3f}, threshold: {tmax}, AUPR: {aupr:0.3f}')
 
 
-    plot_curves(dic, ontology=ontology)
+    # plot_curves(dic, ontology=ontology)
 
 
 
@@ -300,9 +294,6 @@ to_remove = {'C0HM98', 'C0HM97', 'C0HMA1', 'C0HM44'}
 
 def main():
     for ont in test_group:
-
-        if ont == "cc" or ont == "mf":
-            continue
     
         print("###############{}######################".format(ont))
 
