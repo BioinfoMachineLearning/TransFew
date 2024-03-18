@@ -4,13 +4,11 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import torch
-from Utils import load_ckp, pickle_load, pickle_save
-import CONSTANTS
-import math, os, time
+from Utils import is_file, load_ckp, pickle_load
+import os
 import argparse
-from models.model import TFun, TFun_submodel
+from models.model import TFun
 from Dataset.FastDataset import PredictDataset
-
 
 def write_output(results, terms, filepath, cutoff=0.001):
     with open(filepath, 'w') as fp:
@@ -127,9 +125,9 @@ def create_dataset(proteins, wd):
     return dataset
 
 
-def get_term_indicies(ontology, device):
+def get_term_indicies(ontology, device, data_path):
 
-    _term_indicies = pickle_load(CONSTANTS.ROOT_DIR + "{}/term_indicies".format(ontology))
+    _term_indicies = pickle_load(data_path + "/{}/term_indicies".format(ontology))
 
     if ontology == 'bp':
         full_term_indicies, mid_term_indicies,  freq_term_indicies =  _term_indicies[0], _term_indicies[5], _term_indicies[30]
@@ -147,28 +145,44 @@ def get_term_indicies(ontology, device):
     return full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2
 
 
+parser = argparse.ArgumentParser(description=" Predict protein functions with TransFew ", epilog=" Thank you !!!")
+parser.add_argument('--data-path', type=str, default="", help="Path to data files (models)")
+parser.add_argument('--working-dir', type=str, default=".", help="Path to generate temporary files")
+parser.add_argument('--ontology', type=str, default="cc", help="Path to data files")
+parser.add_argument('--no-cuda', default=False, help='Disables CUDA training.')
+parser.add_argument('--batch-size', default=10, help='Batch size.')
+parser.add_argument('--fasta-path', default="sequence.fasta", help='Path to Fasta')
+parser.add_argument('--output', type=str, default="result.tsv", help="File to save output")
 
-fasta_path = "/home/fbqc9/Workspace/TransFun2/test_fasta_cp.fasta"
-wd = "."
-ontology = "cc"
-device = "cpu"
+args = parser.parse_args()
+args.cuda = not args.no_cuda and torch.cuda.is_available()
+
+if args.cuda:
+    device = 'cuda'
+else:
+    device = 'cpu'
+
+device = 'cpu'
+
+
+
+fasta_path = args.fasta_path
+wd = args.working_dir
+ontology = args.ontology
+data_path = args.data_path
+
+
 
 proteins = generate_embeddings(in_fasta=fasta_path, wd=wd)
 
 dataset = create_dataset(proteins, wd=wd)
 
 loader = torch.utils.data.DataLoader(dataset, batch_size=500, shuffle=False)
-    
-
-ontologies = ["cc", "mf", "bp"]
-annotation_depths = ["LK", "NK"]
-sub_models = ['esm2_t48', 'msa_1b', 'interpro', 'full']
-label_features = ['x', 'biobert', 'linear', ]
 
 
-sorted_terms = pickle_load(CONSTANTS.ROOT_DIR+"/{}/sorted_terms".format(ontology))
+sorted_terms = pickle_load(data_path+"/{}/sorted_terms".format(ontology))
 full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2 = \
-    get_term_indicies(ontology=ontology, device=device)
+    get_term_indicies(ontology=ontology, device=device, data_path=data_path)
 
 kwargs = {
     'device': device,
@@ -183,7 +197,7 @@ kwargs = {
     'group': ""
 }
 
-ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}_{}/'.format(ontology, kwargs['sub_model'], kwargs['label_features'])
+ckp_dir = data_path + '/{}/models/{}_{}/'.format(ontology, kwargs['sub_model'], kwargs['label_features'])
 ckp_pth = ckp_dir + "current_checkpoint.pt"
 model = TFun(**kwargs)
 
@@ -204,8 +218,6 @@ for data in loader:
         results[i] = j
 
 terms = [sorted_terms[i] for i in full_term_indicies]
-
-filepath = 'test_prediction.tsv'
-write_output(results, terms, filepath, cutoff=0.01)
+write_output(results, terms, args.output, cutoff=0.01)
 
             

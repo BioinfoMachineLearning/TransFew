@@ -19,6 +19,7 @@ exp_evidence_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", "HT
 # ROOT_DIR = "/home/fbqc9/PycharmProjects/TransFun2Data/"
 # ROOT_DIR = "D:/Workspace/python-3/TransFun2/"
 ROOT_DIR = "/home/fbqc9/Workspace/DATA/"
+ROOT_DIR = "/home/fbqc9/Workspace/TFewData/"
 
 ROOT = "/home/fbqc9/PycharmProjects/TransFun2/"
 ROOT = "D:/Workspace/python-3/TransFun2/"
