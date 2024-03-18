@@ -42,7 +42,7 @@ args.lr = hyps['label_ae']['lr']
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 device = 'cpu'
 if args.cuda:
-    device = 'cuda'
+    device = 'cuda:1'
 
 print("Ontology: {}, Learning rate: {},  Weight Decay: {}, Device: {}"\
       .format(args.ont, args.lr, args.weight_decay, device))
@@ -183,7 +183,6 @@ model = model.to(device)
 
 print(num2words(count_params(model)))
 
-exit()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 

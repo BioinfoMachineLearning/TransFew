@@ -138,8 +138,8 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
             for _epoch, _data in enumerate(train_data):
 
                 if args.submodel == 'full':
-                    features = _data[:5]
-                    labels = _data[5].to(device)
+                    features = _data[:3]
+                    labels = _data[3].to(device)
 
                     freq_labels = torch.index_select(labels, 1, freq_term_indicies)
                     rare_labels = torch.index_select(labels, 1, rare_term_indicies)
@@ -274,8 +274,8 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
             for _epoch, _data in enumerate(val_data):
 
                 if args.submodel == 'full':
-                    features = _data[:5]
-                    labels = _data[5].to(device)
+                    features = _data[:3]
+                    labels = _data[3].to(device)
 
                     freq_labels = torch.index_select(labels, 1, freq_term_indicies)
                     rare_labels = torch.index_select(labels, 1, rare_term_indicies)

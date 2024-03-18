@@ -49,8 +49,8 @@ def plot_score_distribution(data, Xs, measure="auc", groundtruth_only=True):
 
     nrows, ncols = 3, 1
     fig, axs = plt.subplots(
-        nrows, ncols, figsize=(32, 28),
-        gridspec_kw={'hspace': 0.3},
+        nrows, ncols, figsize=(12, 12),
+        gridspec_kw={'hspace': 0.4},
         sharex=False, sharey=True,
         #layout='constrained'
     )
@@ -62,24 +62,24 @@ def plot_score_distribution(data, Xs, measure="auc", groundtruth_only=True):
             bars = axs[keys[ont]].bar(x + offset, values, width, label=labels[method]);
             multiplier += 1
 
-        axs[keys[ont]].set_title(titles[ont], fontsize=24, fontweight="bold")
+        axs[keys[ont]].set_title(titles[ont], fontsize=18, fontweight="bold")
         axs[keys[ont]].set_xticks(x + width, Xs)
-        axs[keys[ont]].tick_params(axis='both', labelrotation=25, labelsize=20)
-        axs[keys[ont]].legend(loc='upper left', ncols=3, fontsize=20)
+        axs[keys[ont]].tick_params(axis='both', labelrotation=25, labelsize=14)
+        axs[keys[ont]].legend(loc='upper left', ncols=3, fontsize=16)
     
-    fig.text(0.5, 0.06, 'Annotation Frequency', ha='center', fontweight ='bold', fontsize=24)
+    fig.text(0.5, 0.04, 'Annotation Frequency', ha='center', fontweight ='bold', fontsize=16)
     if measure == "auc":
-        fig.text(0.08, 0.5, 'Average AUC', va='center', rotation='vertical', fontweight ='bold', fontsize=24)
+        fig.text(0.08, 0.5, 'Average AUC', va='center', rotation='vertical', fontweight ='bold', fontsize=16)
         # plt.suptitle(f'Average AUCs of terms grouped by annotation size on the test dataset\n', x=0.5, y=0.9, fontsize=26, ha='center', fontweight="bold")
     elif measure == "auprc":
-        fig.text(0.08, 0.5, 'Average AUPR', va='center', rotation='vertical',  fontweight ='bold', fontsize=24)
+        fig.text(0.04, 0.5, 'Average AUPR', va='center', rotation='vertical',  fontweight ='bold', fontsize=16)
         #plt.suptitle(f'Average AUPRCs of terms grouped by annotation size on the test dataset\n', x=0.5, y=0.95, fontsize=26, ha='center', fontweight="bold")
     
     plt.tight_layout()  
     if groundtruth_only:
-        plt.savefig("plots/average_1_{}.png".format(measure))
+        plt.savefig("plots/average_1_{}.png".format(measure), bbox_inches='tight')
     else:
-        plt.savefig("plots/average_2_{}.png".format(measure))
+        plt.savefig("plots/average_2_{}.png".format(measure), bbox_inches='tight')
 
  
 def check_intersection_rare():

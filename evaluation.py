@@ -58,7 +58,7 @@ def get_graph(go_path=CONSTANTS.ROOT_DIR + "/obo/go-basic.obo"):
 
 def plot_curves(data, ontology):
 
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     # fig.suptitle("Area Under the Precision-Recall curve")
     method_dic = {
         "esm2_t48": "ESM", "msa_1b": "MSA", 
@@ -91,10 +91,10 @@ def plot_curves(data, ontology):
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.0])
     ax.tick_params(axis='both', which='major', labelsize=16)
-    ax.set_xlabel('Recall', fontsize=18)
-    ax.set_ylabel('Precision', fontsize=18)
-    ax.set_title(CONSTANTS.NAMES[ontology], fontsize=20)
-    ax.legend(loc="upper left",  ncols=2, fontsize=16)
+    ax.set_xlabel('Recall', fontsize=18,  fontweight ='bold')
+    ax.set_ylabel('Precision', fontsize=18,  fontweight ='bold')
+    ax.set_title(CONSTANTS.NAMES[ontology], fontsize=20,  fontweight ='bold')
+    ax.legend(loc="upper left",  ncols=2, fontsize=13)#, prop=dict(weight='bold'))
     plt.savefig("plots/results_{}.png".format(ontology))
 
 
@@ -301,7 +301,7 @@ to_remove = {'C0HM98', 'C0HM97', 'C0HMA1', 'C0HM44'}
 def main():
     for ont in test_group:
 
-        if ont == "cc" or ont == "mf":
+        if ont == "mf" or ont == "cc":
             continue
     
         print("###############{}######################".format(ont))
