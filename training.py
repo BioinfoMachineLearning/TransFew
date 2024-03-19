@@ -11,9 +11,8 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchvision.ops import sigmoid_focal_loss
 from torch_geometric.loader import DataLoader
-from Dataset.Dataset import TransFunDataset
 import CONSTANTS
-from Dataset.Dataset import TransFewDataset
+from Dataset.MyDataset import TransFewDataset
 from models.model import TFun, TFun_submodel
 from Loss.Loss import HierarchicalLoss, DiceLoss
 from Utils import load_ckp, pickle_load, read_cafa5_scores, save_ckp
@@ -432,10 +431,10 @@ def train_model(start_epoch, min_val_loss, train_data, val_data, model, optimize
 
 
 pth = CONSTANTS.ROOT_DIR + "{}/{}_data"
-train_dataset = FastTransFunDataset(data_pth=pth.format(args.ont, 'train'), submodel=args.submodel)
+train_dataset = TransFewDataset(data_pth=pth.format(args.ont, 'train'), submodel=args.submodel)
 trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch, shuffle=True)
 
-val_dataset = FastTransFunDataset(data_pth=pth.format(args.ont, 'validation'), submodel=args.submodel)
+val_dataset = TransFewDataset(data_pth=pth.format(args.ont, 'validation'), submodel=args.submodel)
 valloader = torch.utils.data.DataLoader(val_dataset, batch_size=args.valid_batch, shuffle=True)
 
 
