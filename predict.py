@@ -100,13 +100,13 @@ def generate_embeddings(in_fasta, wd):
             sequences.append(record)
 
     # any sequence > 1022
-    cropped_fasta = "/home/fbqc9/Workspace/TransFun2/temp.fasta"
+    cropped_fasta = wd + "/temp.fasta"
     if len(keys) > 0:
         SeqIO.write(sequences, cropped_fasta, "fasta")
-        # generate_bulk_embedding(wd, self.cropped_fasta)
+        generate_bulk_embedding(wd, cropped_fasta)
         merge_pts(keys, fasta_path, wd)
     else:
-        # generate_bulk_embedding(wd, self.in_fasta)
+        generate_bulk_embedding(wd, in_fasta)
         pass
 
     return proteins
@@ -162,15 +162,11 @@ if args.cuda:
 else:
     device = 'cpu'
 
-device = 'cpu'
-
-
 
 fasta_path = args.fasta_path
 wd = args.working_dir
 ontology = args.ontology
 data_path = args.data_path
-
 
 
 proteins = generate_embeddings(in_fasta=fasta_path, wd=wd)
@@ -218,6 +214,6 @@ for data in loader:
         results[i] = j
 
 terms = [sorted_terms[i] for i in full_term_indicies]
-write_output(results, terms, args.output, cutoff=0.01)
+write_output(results, terms, wd + args.output, cutoff=0.01)
 
             

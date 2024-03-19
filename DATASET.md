@@ -21,6 +21,7 @@ Index of ontology in model: term_indicies.pickle
 train proteins: TFewData/ont/train_proteins.pickle
 validation proteins: TFewData/ont/validation_proteins.pickle
 train and validation proteins: TFewData/ont/all_proteins.pickle
+label data: TFewData/ont/graph.pt
 
 processed dataset:
     TFewData/ont/train_data.pickle
@@ -40,6 +41,7 @@ processed dataset:
         }
 
 ```
+
 
 #### Preprocessed Test Data Description
 ```
@@ -62,4 +64,5 @@ Test groundtruth
 #### Trained models
 ```
 TFewData/ont/full_gcn :-> final model
+TFewData/ont/models/label/GCN :-> label embedding model
 ```
