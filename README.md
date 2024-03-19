@@ -16,7 +16,7 @@ cd TransFew/
 
 
 # create conda environment
-conda env create -f environment.yml
+conda env create -f transfew.yaml
 conda activate transfew
 ```
 
@@ -45,7 +45,7 @@ options:
 
 4. An example of predicting cellular component of some proteins: 
 ```
-    python predict.py --fasta-path path-to-fasta-file --data-path path-to-data-directory --ontology cc/mf/bp  --output result.txt
+  python predict.py  --data-path /TFewData/ --fasta-path output_dir/test_fasta.fasta --ontology cc --working-dir output_dir --output result.tsv
 ```
 
 ##### Output format

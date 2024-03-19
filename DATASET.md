@@ -58,6 +58,10 @@ TFewData/test/t2/test_proteins:
 
 TFewData/test/t2/groundtruth:
 Test groundtruth
+
+
+Predictions from various models compared are kept in:
+TFewData/evaluation
 ```
 
 
@@ -65,4 +69,6 @@ Test groundtruth
 ```
 TFewData/ont/full_gcn :-> final model
 TFewData/ont/models/label/GCN :-> label embedding model
+
+All other models will be uploaded to zenodo soon.
 ```
