@@ -22,7 +22,6 @@ ROOT_DIR = "/home/fbqc9/Workspace/DATA/"
 ROOT_DIR = "/home/fbqc9/Workspace/TFewData/"
 
 ROOT = "/home/fbqc9/PycharmProjects/TransFun2/"
-ROOT = "D:/Workspace/python-3/TransFun2/"
 
 NAMESPACES = {
     "cc": "cellular_component",

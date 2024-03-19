@@ -13,7 +13,7 @@ from torchvision.ops import sigmoid_focal_loss
 from torch_geometric.loader import DataLoader
 from Dataset.Dataset import TransFunDataset
 import CONSTANTS
-from Dataset.FastDataset import FastTransFunDataset
+from Dataset.Dataset import TransFewDataset
 from models.model_ablation import TFun, TFun_submodel
 from Loss.Loss import HierarchicalLoss, DiceLoss
 from Utils import load_ckp, pickle_load, read_cafa5_scores, save_ckp
@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import collections
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
+os.environ["WANDB_API_KEY"] = ""
 os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()

@@ -1,11 +1,11 @@
 import torch
-from Dataset.FastDataset import FastTransFunDataset
 from Utils import load_ckp, pickle_load, pickle_save
 import CONSTANTS
 import math, os, time
 import argparse
 from models.model import TFun, TFun_submodel
-from Dataset.FastDataset import TestDataset
+from Dataset.Dataset import TransFewDataset
+from Dataset.Dataset import TestDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
