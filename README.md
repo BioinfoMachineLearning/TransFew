@@ -22,13 +22,6 @@ conda activate transfew
 
 
 ## Prediction
-1. To predict protein function with protein structures in the PDB format as input (note: protein sequences are automatically extracted from the PDB files in the input pdb path).
-```
-    python predict.py --data-path path_to_store_intermediate_files --ontology GO_function_category --input-type pdb --pdb-path data/alphafold --output output_file --cut-off probability_threshold
-```
-
-
-3. Full prediction command: 
 ```
 Predict protein functions with TransFew
 
