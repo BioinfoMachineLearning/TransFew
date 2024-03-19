@@ -33,7 +33,7 @@ parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=5000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.0001, help='Initial learning rate.') # 0.0001
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (L2 loss on parameters).') #5e-4
-parser.add_argument("--ont", default='cc', type=str, help='Ontology under consideration')
+parser.add_argument("--ont", default='mf', type=str, help='Ontology under consideration')
 parser.add_argument('--train_batch', type=int, default=64, help='Training batch size.')
 parser.add_argument('--valid_batch', type=int, default=64, help='Validation batch size.')
 parser.add_argument('--submodel', type=str, default='full', help='Sub model to train')
