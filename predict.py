@@ -107,7 +107,6 @@ def generate_embeddings(in_fasta, wd):
         merge_pts(keys, fasta_path, wd)
     else:
         generate_bulk_embedding(wd, in_fasta)
-        pass
 
     return proteins
 
@@ -214,6 +213,6 @@ for data in loader:
         results[i] = j
 
 terms = [sorted_terms[i] for i in full_term_indicies]
-write_output(results, terms, wd + args.output, cutoff=0.01)
+write_output(results, terms, "{}/{}".format(wd, args.output), cutoff=0.01)
 
             
