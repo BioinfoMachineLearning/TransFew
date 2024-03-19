@@ -388,8 +388,8 @@ class TFun(nn.Module):
         msa_freq_out = self.msa_freq_mlp(data[1].to(self.device))
         msa_rare_out = self.msa_rare_mlp(data[1].to(self.device))
 
-        interpro_freq_out = self.interpro_freq_mlp(data[3].to(self.device))
-        interpro_rare_out = self.interpro_rare_mlp(data[3].to(self.device))
+        interpro_freq_out = self.interpro_freq_mlp(data[2].to(self.device))
+        interpro_rare_out = self.interpro_rare_mlp(data[2].to(self.device))
 
         extraargs = {
             'esm_freq_out': esm_freq_out, 'esm_rare_out': esm_rare_out,
@@ -402,7 +402,7 @@ class TFun(nn.Module):
         if self.ont == 'bp':
             esm_rare_out_2 = self.esm_rare_mlp_2(data[0].to(self.device))
             msa_rare_out_2 = self.msa_rare_mlp_2(data[1].to(self.device))
-            interpro_rare_out_2 = self.interpro_rare_mlp_2(data[3].to(self.device))
+            interpro_rare_out_2 = self.interpro_rare_mlp_2(data[2].to(self.device))
 
             extraargs['esm_rare_out_2'] = esm_rare_out_2
             extraargs['msa_rare_out_2'] = msa_rare_out_2

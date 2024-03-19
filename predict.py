@@ -8,7 +8,7 @@ from Utils import is_file, load_ckp, pickle_load
 import os
 import argparse
 from models.model import TFun
-from Dataset.Dataset import PredictDataset
+from Dataset.MyDataset import PredictDataset
 
 def write_output(results, terms, filepath, cutoff=0.001):
     with open(filepath, 'w') as fp:
