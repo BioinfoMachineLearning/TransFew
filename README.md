@@ -1,8 +1,8 @@
-# Github Repository for TransFew:  
+# TransFew:  
 #### Improving protein function prediction by learning and integrating representations of protein sequences and function labels
 
 TransFew leaverages representations of both protein sequences and
-function labels (Gene Ontology (GO) terms) to predict the function of proteins. 
+function labels (Gene Ontology (GO) terms) to predict the function of proteins. It improves the accuracy of predicting both common and rare function terms (GO terms). 
 
 
 
