@@ -1,4 +1,4 @@
-# TransFew:  
+# TransFew
 #### Improving protein function prediction by learning and integrating representations of protein sequences and function labels
 
 TransFew leaverages representations of both protein sequences and
