@@ -68,7 +68,7 @@ def main(args):
             "This script currently does not handle models with MSA input (MSA Transformer)."
         )
     if torch.cuda.is_available() and not args.nogpu:
-        model = model.to(device="cuda")
+        model = model.to(device="cuda:1")
         print("Transferred model to GPU")
 
     dataset = FastaBatchedDataset.from_file(args.fasta_file)
@@ -90,7 +90,7 @@ def main(args):
                 f"Processing {batch_idx + 1} of {len(batches)} batches ({toks.size(0)} sequences)"
             )
             if torch.cuda.is_available() and not args.nogpu:
-                toks = toks.to(device="cuda", non_blocking=True)
+                toks = toks.to(device="cuda:1", non_blocking=True)
 
             out = model(toks, repr_layers=repr_layers, return_contacts=return_contacts)
 

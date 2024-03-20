@@ -157,7 +157,7 @@ args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 if args.cuda:
-    device = 'cuda'
+    device = 'cuda:1'
 else:
     device = 'cpu'
 
