@@ -76,7 +76,7 @@ The training program is available in training.py, to train the model:
 
 ## Reference
 ```
-
+Boadu, F., & Cheng, J. (2024). Improving protein function prediction by learning and integrating representations of protein sequences and function labels. bioRxiv
 
 ```
 
