@@ -60,7 +60,7 @@ options:
 
 ## Dataset
 ```
-See DATASET.md for description of data
+See DATASET.md (https://github.com/BioinfoMachineLearning/TransFew/blob/main/DATASET.md) for description of data
 ```
 
 
