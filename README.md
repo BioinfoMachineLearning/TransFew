@@ -13,6 +13,7 @@ git clone https://github.com/BioinfoMachineLearning/TransFew.git
 cd TransFew/
 
 # download trained models and test sample
+https://calla.rnet.missouri.edu/rnaminer/tfew/TFewDataset
 
 
 # create conda environment
@@ -45,7 +46,9 @@ options:
 
 4. An example of predicting cellular component of some proteins: 
 ```
-  python predict.py  --data-path /TFewData/ --fasta-path output_dir/test_fasta.fasta --ontology cc --working-dir output_dir --output result.tsv
+1. Change ROOT_DIR in CONSTANTS.py to path of data directory
+
+2. python predict.py  --data-path /TFewData/ --fasta-path output_dir/test_fasta.fasta --ontology cc --working-dir output_dir --output result.tsv
 ```
 
 ##### Output format
@@ -53,9 +56,12 @@ options:
   protein   GO term  score
   A0A7I2V2M2	GO:0043227	0.996
   A0A7I2V2M2	GO:0043226	0.996
-  A0A7I2V2M2	GO:0043229	0.996
-  A0A7I2V2M2	GO:0043231	0.995
-
+  A0A7I2V2M2	GO:0005737	0.926
+  A0A7I2V2M2	GO:0043233	0.924
+  A0A7I2V2M2	GO:0031974	0.913
+  A0A7I2V2M2	GO:0070013	0.912
+  A0A7I2V2M2	GO:0031981	0.831
+  A0A7I2V2M2	GO:0005654	0.767
 ```
 
 ## Dataset
