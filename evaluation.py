@@ -227,6 +227,7 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
 
     # methods = ["naive", "msa_1b", "interpro", "esm2_t48", "tale", "netgo", "full_gcn", "full_combined_gcn"] # , "full_mean", "full_max"
     methods = ["naive", "tale", "netgo", "full_gcn"]
+    methods = ["deepgose", 'sprof']
     # methods = ["full_gcn"]
 
     # methods = ["full_gcn"] # , "full_mean", "full_max"
@@ -243,7 +244,10 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
         
         # predictions = predictions[group]
         #add both NK and LK
-        predictions = predictions["LK_"+ontology] | predictions["NK_"+ontology]
+        if method == 'sprof' or method == 'deepgose':
+            predictions = predictions[ontology]
+        else:
+            predictions = predictions["LK_"+ontology] | predictions["NK_"+ontology]
 
         coverage = len(set(predictions.keys()).intersection(proteins)) / len(proteins)
 
@@ -272,7 +276,7 @@ def evaluating(proteins, groundtruth, go_graph, title="", ontology=""):
         # print(f'Fmax: {fmax:0.3f}, threshold: {tmax}, AUPR: {aupr:0.3f}')
 
 
-    plot_curves(dic, ontology=ontology)
+    # plot_curves(dic, ontology=ontology)
 
 
 
