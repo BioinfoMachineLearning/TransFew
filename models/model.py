@@ -355,7 +355,7 @@ class TFun(nn.Module):
             self.label_embedding = load_ckp(ckp_pth.format("label/GCN"), self.label_embedding, optimizer=None, lr_scheduler=None, best_model=True, model_only=True)
             self.joint_embedding = Attention(concat_hidden=self.out_shape, 
                                            label_dimension=1024, 
-                                           embedding_size=256 if self.ont == 'bp' else 256, #768,#2048,
+                                           embedding_size=512 if self.ont == 'bp' else 256, #768,#2048,
                                            out_proj = self.out_shape)
         elif self.label_features == 'linear':
             self.joint_embedding_1 = Attention(concat_hidden=self.out_shape, 

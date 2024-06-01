@@ -12,7 +12,7 @@ from torch_geometric.nn import GAE
 import hparams
 from num2words import num2words
 
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
+os.environ["WANDB_API_KEY"] = ""
 os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()

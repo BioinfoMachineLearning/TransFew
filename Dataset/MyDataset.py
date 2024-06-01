@@ -41,10 +41,6 @@ class TransFewDataset(Dataset):
         elif self.submodel == 'full':
             # return esm, msa, diamond, interpro, string, label
             return esm, msa, interpro, label
-        '''elif self.submodel == 'diamond':
-            return diamond, label
-        elif self.submodel == 'string':
-            return string, label'''
     
     def __len__(self):
         return len(self.labels)
@@ -62,6 +58,7 @@ class TestDataset(Dataset):
         self.msa_features = data['msa_1b']
         self.diamond_features = data['diamond']
         self.interpro_features = data['interpro']
+        # self.labs = data['labels']
         
     def __getitem__(self, index):
 
@@ -70,6 +67,8 @@ class TestDataset(Dataset):
         diamond = self.diamond_features[index]
         interpro = self.interpro_features[index]
         proteins = self.proteins[index]
+
+        # pop = self.labs[index]
 
         
 
@@ -82,7 +81,7 @@ class TestDataset(Dataset):
         elif self.submodel == 'interpro':
             return interpro, proteins
         elif self.submodel == 'full':
-            return esm, msa, diamond, interpro, proteins
+            return esm, msa, diamond, interpro, proteins#, pop
     
     def __len__(self):
         return len(self.proteins)

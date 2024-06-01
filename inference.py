@@ -1,17 +1,16 @@
 import torch
-from Utils import load_ckp, pickle_load, pickle_save
+from Utils import create_directory, load_ckp, pickle_load, pickle_save
 import CONSTANTS
 import math, os, time
 import argparse
 from models.model import TFun, TFun_submodel
-from Dataset.Dataset import TransFewDataset
-from Dataset.Dataset import TestDataset
+from Dataset.MyDataset import TestDataset
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument("--load_weights", default=False, type=bool, help='Load weights from saved model')
-parser.add_argument('--label_features', type=str, default='linear', help='Sub model to train')
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -23,13 +22,11 @@ else:
     device = 'cpu'
 
 # load all test
-all_test = pickle_load(CONSTANTS.ROOT_DIR + "test/t3/test_proteins")
+all_test = pickle_load(CONSTANTS.ROOT_DIR + "test/output_t1_t2/test_proteins")
 
 
 ontologies = ["cc", "mf", "bp"]
-annotation_depths = ["LK", "NK"]
-sub_models = ['esm2_t48', 'msa_1b', 'interpro', 'full']
-label_features = ['x', 'biobert', 'linear', 'gcn']
+models = ['esm2_t48', 'msa_1b', 'interpro', 'full']
 
 
 
@@ -44,7 +41,8 @@ def write_output(results, terms, filepath, cutoff=0.001):
                     fp.write('%s\t%s\t%0.3f\n' %  (prt, trm, score))
 
 
-def get_term_indicies(ontology, submodel="full", label_feature="max"):
+
+def get_term_indicies(ontology):
 
     _term_indicies = pickle_load(CONSTANTS.ROOT_DIR + "{}/term_indicies".format(ontology))
 
@@ -64,106 +62,88 @@ def get_term_indicies(ontology, submodel="full", label_feature="max"):
     return full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2
 
 
-    '''if submodel == 'full' and label_feature not in ['max', 'mean']: 
-        term_indicies =  torch.tensor(_term_indicies[0])
-        sub_indicies = torch.tensor(_term_indicies[threshold[ontology]])
-    else:
-        term_indicies = torch.tensor(_term_indicies[threshold[ontology]])
-        sub_indicies = term_indicies
 
-    
+for ontology in ontologies:
+
+    data_pth = CONSTANTS.ROOT_DIR + "test/dataset/{}".format(ontology)
     sorted_terms = pickle_load(CONSTANTS.ROOT_DIR+"/{}/sorted_terms".format(ontology))
+    
+    for sub_model in models:
 
-    terms = [sorted_terms[i] for i in term_indicies]
-
-    return terms, term_indicies, sub_indicies'''
-
-
-
-for annotation_depth in annotation_depths:
-    for ontology in ontologies:
-
-        data_pth = CONSTANTS.ROOT_DIR + "test/t3/dataset/{}_{}".format(annotation_depth, ontology)
-        sorted_terms = pickle_load(CONSTANTS.ROOT_DIR+"/{}/sorted_terms".format(ontology))
-        
-        for sub_model in sub_models:
-
-            tst_dataset = TestDataset(data_pth=data_pth, submodel=sub_model)
-            tstloader = torch.utils.data.DataLoader(tst_dataset, batch_size=500, shuffle=False)
-            # terms, term_indicies, sub_indicies = get_term_indicies(ontology=ontology, submodel=sub_model)
-            full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2 = get_term_indicies(ontology=ontology, submodel=sub_model)
+        tst_dataset = TestDataset(data_pth=data_pth, submodel=sub_model)
+        tstloader = torch.utils.data.DataLoader(tst_dataset, batch_size=500, shuffle=False)
+        # terms, term_indicies, sub_indicies = get_term_indicies(ontology=ontology, submodel=sub_model)
+        full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2 = get_term_indicies(ontology=ontology)
 
 
-            kwargs = {
-                'device': device,
-                'ont': ontology,
-                'full_indicies': full_term_indicies,
-                'freq_indicies': freq_term_indicies,
-                'rare_indicies': rare_term_indicies,
-                'rare_indicies_2': rare_term_indicies_2,
-                'sub_model': sub_model,
-                'load_weights': True,
-                'label_features': "",
-                'group': ""
-            }
+        kwargs = {
+            'device': device,
+            'ont': ontology,
+            'full_indicies': full_term_indicies,
+            'freq_indicies': freq_term_indicies,
+            'rare_indicies': rare_term_indicies,
+            'rare_indicies_2': rare_term_indicies_2,
+            'sub_model': sub_model,
+            'load_weights': True,
+            'group': ""
+        }
 
-            if sub_model == "full":
-                for label_feature in label_features:
-                    print("Generating for {} {} {} {}".format(annotation_depth, ontology, sub_model, label_feature))
+        if sub_model == "full":
+            print("Generating for {} {}".format(ontology, sub_model))
 
-                    kwargs['label_features'] = label_feature
+            ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}_gcn_old/'.format(ontology, sub_model)
+            ckp_pth = ckp_dir + "current_checkpoint.pt"
+            model = TFun(**kwargs)
 
-                    ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}_{}/'.format(ontology, sub_model, label_feature)
-                    ckp_pth = ckp_dir + "current_checkpoint.pt"
-                    model = TFun(**kwargs)
+            # load model
+            model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
 
-                    # load model
-                    if label_feature != 'max' and label_feature != 'mean': 
-                        model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
+            model.to(device)
+            model.eval()
 
-                    model.to(device)
-                    model.eval()
+            results = {}
+            for data in tstloader:
+                _features, _proteins = data[:4], data[4]
+                output = model(_features)
+                output = torch.index_select(output, 1, full_term_indicies)
+                output = output.tolist()
 
-                    results = {}
-                    for data in tstloader:
-                        _features, _proteins = data[:4], data[4]
-                        output, _ = model(_features)
-                        output = torch.index_select(output, 1, full_term_indicies)
-                        output = output.tolist()
+                for i, j in zip(_proteins, output):
+                    results[i] = j
 
-                        for i, j in zip(_proteins, output):
-                            results[i] = j
+            terms = [sorted_terms[i] for i in full_term_indicies]
 
-                    terms = [sorted_terms[i] for i in full_term_indicies]
 
-                    filepath = 'evaluation/predictions/transfew/{}_{}_{}_{}.tsv'.format(annotation_depth, ontology, sub_model, label_feature)
-                    write_output(results, terms, filepath, cutoff=0.01)
+            filepath = CONSTANTS.ROOT_DIR + 'evaluation/raw_predictions/transfew/'
+            create_directory(filepath)
+            write_output(results, terms, filepath+'{}.tsv'.format(ontology), cutoff=0.01)
 
-            else:
-                print("Generating for {} {} {}".format(annotation_depth, ontology, sub_model))
+        else:
+            print("Generating for {} {}".format(ontology, sub_model))
 
-                ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}/'.format(ontology, sub_model)
-                ckp_pth = ckp_dir + "current_checkpoint.pt"
-                
-                model = TFun_submodel(**kwargs)
-                model.to(device)
+            ckp_dir = CONSTANTS.ROOT_DIR + '{}/models/{}/'.format(ontology, sub_model)
+            ckp_pth = ckp_dir + "current_checkpoint.pt"
+            
+            model = TFun_submodel(**kwargs)
+            model.to(device)
 
-                # print("Loading model checkpoint @ {}".format(ckp_pth))
-                model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
-                model.eval()
-                
-                results = {}
-                for data in tstloader:
-                    _features, _proteins = data[0], data[1]
+            # print("Loading model checkpoint @ {}".format(ckp_pth))
+            model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
+            model.eval()
+            
+            results = {}
+            for data in tstloader:
+                _features, _proteins = data[0], data[1]
 
-                    output = model(_features).tolist()
-                    for i, j in zip(_proteins, output):
-                        results[i] = j
+                output = model(_features).tolist()
+                for i, j in zip(_proteins, output):
+                    results[i] = j
 
-                terms = [sorted_terms[i] for i in freq_term_indicies]
+            terms = [sorted_terms[i] for i in freq_term_indicies]
 
-                filepath = 'evaluation/predictions/transfew/{}_{}_{}.tsv'.format(annotation_depth, ontology, sub_model)
-                write_output(results, terms, filepath, cutoff=0.01)
+            filepath = CONSTANTS.ROOT_DIR + 'evaluation/raw_predictions/{}/'.format(sub_model)
+            create_directory(filepath)
+            write_output(results, terms, filepath+'{}.tsv'.format(ontology), cutoff=0.01)
 
                 
 

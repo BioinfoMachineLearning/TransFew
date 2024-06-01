@@ -15,7 +15,6 @@ input    : file text
 output   : dic (key: name of file (number), value is a big dictionary store info about the protein)
 '''
 
-
 def read_gaf(handle):
     name = handle.split(".")[-1]
     dic = {}
@@ -23,7 +22,6 @@ def read_gaf(handle):
     # evidence from experimental
     Evidence = {'Evidence': set(["EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC", 
                                  "HTP", "HDA", "HMP", "HGI", "HEP"])}
-
     with open(handle, 'r') as handle:
         for rec in GOA.gafiterator(handle):
             if GOA.record_has(rec, Evidence) and rec['DB'] == 'UniProtKB':
@@ -35,9 +33,21 @@ def read_gaf(handle):
                         dic[rec['DB_Object_ID']][rec['Aspect']] = set([rec['GO_ID']])
                     else:
                         dic[rec['DB_Object_ID']][rec['Aspect']].add(rec['GO_ID'])
-    return name, dic, all_protein_name
+    return dic, all_protein_name
 
 
+def read_gpi(in_file, proteins):
+    results = {'trembl': set(), 'swissprot':set()}
+    with open(in_file, 'r') as handle:
+        for entry in GOA.gpi_iterator(handle):
+            if entry['DB'] == 'UniProtKB' and entry['DB_Object_ID'] in proteins:
+                if entry['Gene_Product_Properties'][0] == "db_subset=TrEMBL":
+                    results['trembl'].add(entry['DB_Object_ID'])
+                elif entry['Gene_Product_Properties'][0] == "db_subset=Swiss-Prot":
+                    results['swissprot'].add(entry['DB_Object_ID'])
+    return results
+
+    
 '''
 function : given t1 dic, t2 dic, we provide the dic for NK, and LK dic for each ontology
 input    : 2 dics
@@ -67,105 +77,122 @@ def analyze(t1_dic, t2_dic, all_protein_t1):
     return NK_dic, LK_dic
 
 
-'''
-function : given NK,LK dic , write out 6 files 
-input    : 2 dics
-output   : NK,LK dictionary
-'''
+def write_annotations(data_dic, sptr, pth):
+    sprt_dic = {j: i for i in sptr for j in sptr[i]}
+    '''
+        data_dic: annotations in dictionary
+        sptr: swissprot or trembl
+    '''
+    # Did not find sequence 
+    to_remove = {'C0HM98', 'C0HM97', 'C0HMA1', 'C0HM44'}
+    
+    go_graph = get_graph(CONSTANTS.go_graph_path)
 
+    ontologies = ['mf', 'cc', 'bp']
 
-def write_file(dic, knowledge, prefix="t2"):
-    for ontology in dic:
-        if ontology == 'F':
-            name = CONSTANTS.ROOT_DIR + 'test/{}/output/'.format(prefix) + knowledge + '_mfo'
-        elif ontology == 'P':
-            name = CONSTANTS.ROOT_DIR + 'test/{}/output/'.format(prefix) + knowledge + '_bpo'
-        elif ontology == 'C':
-            name = CONSTANTS.ROOT_DIR + 'test/{}/output/'.format(prefix) + knowledge + '_cco'
-        file_out = open(name, 'w')
-        for protein in sorted(dic[ontology]):
-            for annotation in dic[ontology][protein]:
-                file_out.write(protein + '\t' + annotation + '\n')
-        file_out.close()
+    ontology_map = {'F': 'mf', 'P': 'bp', 'C':'cc'}
 
-        name = CONSTANTS.ROOT_DIR + 'test/{}/output/'.format(prefix) + knowledge
-        file_out = open(name, 'w')
-        for ontology in dic:
-            for protein in sorted(dic[ontology]):
-                for annotation in dic[ontology][protein]:
-                    file_out.write(protein + '\t' + annotation + '\n')
-        file_out.close()
-    return None
+    test_proteins = {i: {'trembl': set(), 'swissprot': set()} for i in ontologies}
+    groundtruth = {i: {} for i in ontologies}
+
+    for ont in data_dic:
+        for acc, terms in data_dic[ont].items():
+            if acc in to_remove:
+                pass
+            else: 
+                for term in terms:
+                    try:
+                        tmp = nx.descendants(go_graph, term).union(set([term]))
+                        if acc in groundtruth[ontology_map[ont]]:
+                            groundtruth[ontology_map[ont]][acc].update(tmp)
+                        else:
+                            groundtruth[ontology_map[ont]][acc] = tmp
+                        
+                        test_proteins[ontology_map[ont]][sprt_dic[acc]].add(acc)
+                    except nx.exception.NetworkXError:
+                        pass
+
+    for ont in ontologies:
+        for ts, prots   in test_proteins[ont].items():
+            file_name = pth + "/{}_{}.tsv".format(ont, ts)
+            file_out = open(file_name, 'w')
+            for prot in prots:
+                for annot in groundtruth[ont][prot]:
+                    file_out.write(prot + '\t' + annot + '\n')
+            file_out.close()
+    
+    aspect_dict = {'bp': 'BPO', 'cc': 'CCO', 'mf': 'MFO'}
+
+    file_out = open( pth + "/all_groundtruth.tsv", 'w')
+    for ont in groundtruth:
+        for protein in groundtruth[ont]:
+            for term in groundtruth[ont][protein]:
+                file_out.write(protein + '\t' + term  + '\t' + aspect_dict[ont] + '\n')
+
+    file_out.close()
+
+    
+
+    # pickle_save(test_proteins, pth + "/test_proteins")
+    # pickle_save(groundtruth, pth + "/groundtruth")
 
 
 
 def generate(t1, t2):
-    if not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_name.pickle".format(t1, t1)) \
-            or not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_dic.pickle".format(t1, t1)) \
+
+    if not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_dic.pickle".format(t1, t1)) \
                 or not is_file(CONSTANTS.ROOT_DIR + "test/{}/all_protein_{}.pickle".format(t1, t1)):
-        t1_name, t1_dic, all_protein_t1 = read_gaf(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gaf.212".format(t1))
-        pickle_save(t1_name, CONSTANTS.ROOT_DIR + "test/{}/{}_name".format(t1, t1))
+        t1_dic, all_protein_t1 = read_gaf(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gaf.212".format(t1))
+        print("Reading GAF file 1")
         pickle_save(t1_dic, CONSTANTS.ROOT_DIR + "test/{}/{}_dic".format(t1, t1))
         pickle_save(all_protein_t1, CONSTANTS.ROOT_DIR + "test/t1/all_protein_{}".format(t1))
     else:
-        t1_name = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/{}_name".format(t1, t1))
         t1_dic = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/{}_dic".format(t1, t1))
         all_protein_t1 = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/all_protein_{}".format(t1, t1))
 
-    if not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_name.pickle".format(t2, t2)) \
-            or not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_dic.pickle".format(t2, t2)) \
+    if not is_file(CONSTANTS.ROOT_DIR + "test/{}/{}_dic.pickle".format(t2, t2)) \
                 or not is_file(CONSTANTS.ROOT_DIR + "test/{}/all_protein_{}.pickle".format(t2, t2)):
         print("Reading GAF file 2")
-        t2_name, t2_dic, all_protein_t2 = read_gaf(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gaf".format(t2))
-        pickle_save(t2_name, CONSTANTS.ROOT_DIR + "test/{}/{}_name".format(t2, t2))
+        t2_dic, all_protein_t2 = read_gaf(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gaf".format(t2))
         pickle_save(t2_dic, CONSTANTS.ROOT_DIR + "test/{}/{}_dic".format(t2, t2))
         pickle_save(all_protein_t2, CONSTANTS.ROOT_DIR + "test/{}/all_protein_{}".format(t2, t2))
     else:
-        t2_name = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/{}_name".format(t2, t2))
         t2_dic = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/{}_dic".format(t2, t2))
         all_protein_t2 = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/all_protein_{}".format(t2, t2))
 
+
+    # Find trembl and swissprt proteins
+    sptr_pth = CONSTANTS.ROOT_DIR + "test/{}/sptr".format(t1)
+    if not is_file(sptr_pth+".pickle"):
+        print("Reading GPI file 1")
+        sptr1 = read_gpi(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gpi.212".format(t1), all_protein_t1)
+        pickle_save(sptr1, sptr_pth)
+    else:
+        sptr1 = pickle_load(sptr_pth)
+
+
+    sptr_pth = CONSTANTS.ROOT_DIR + "test/{}/sptr".format(t2)
+    if not is_file(sptr_pth+".pickle"):
+        print("Reading GPI file 2")
+        sptr2 = read_gpi(CONSTANTS.ROOT_DIR + "test/{}/goa_uniprot_all.gpi.218".format(t2), all_protein_t2)
+        pickle_save(sptr2, sptr_pth)
+    else:
+        sptr2 = pickle_load(sptr_pth)
+
+
     NK_dic, LK_dic = analyze(t1_dic, t2_dic, all_protein_t1)
 
-    create_directory(CONSTANTS.ROOT_DIR + "test/{}/output".format(t2))
+    out_pth = CONSTANTS.ROOT_DIR + "test/output_{}_{}".format(t1, t2)
+    create_directory(out_pth)
+
+    NK_LK_dic = {}
+    NK_LK_dic['P'] = NK_dic['P'] | LK_dic['P']
+    NK_LK_dic['C'] = NK_dic['C'] | LK_dic['C']
+    NK_LK_dic['F'] = NK_dic['F'] | LK_dic['F']
 
 
-    write_file(NK_dic, 'NK', t2)
-    write_file(LK_dic, 'LK', t2)
+    write_annotations(NK_LK_dic, sptr2, out_pth)
 
-
-
-def get_all_test_ground_truth(prefix="t2"):
-
-    # objects
-    go_graph = get_graph(CONSTANTS.go_graph_path)
-    unfound = set()
-
-    # test files
-    chunks = ['LK_bpo', 'NK_bpo', 'LK_mfo', 'NK_mfo', 'LK_cco', 'NK_cco', 'LK', 'NK']
-
-    test_proteins = {i: set() for i in chunks[:6]}
-    groundtruth = {}
-    for ch in chunks[:6]:
-        infile = CONSTANTS.ROOT_DIR + "test/{}/output/{}".format(prefix, ch)
-        file = open(infile)
-        for line in file.readlines():
-            acc, term = line.strip().split("\t")
-            try:
-                tmp = nx.descendants(go_graph, term).union(set([term]))
-
-                if acc in groundtruth:
-                    groundtruth[acc].update(tmp)
-                else:
-                    groundtruth[acc] = tmp
-                
-                test_proteins[ch].add(acc)
-            except nx.exception.NetworkXError:
-                unfound.add(term)
-
-    pickle_save(test_proteins, CONSTANTS.ROOT_DIR + "test/{}/test_proteins".format(prefix))
-    pickle_save(groundtruth, CONSTANTS.ROOT_DIR + "test/{}/groundtruth".format(prefix))
-    print(len(unfound))
 
 
 def create_test_dataset():
@@ -235,38 +262,18 @@ def generate_single_fastas():
         SeqIO.write(record, "/bmlfast/frimpong/shared_function_data/single_fastas_2/{}.fasta".format(record.id), "fasta")
         
 
-'''
-print(count_proteins("/home/fbqc9/Workspace/DATA/uniprot/test_fasta_rem.fasta"))
-print(count_proteins("/home/fbqc9/Workspace/DATA/uniprot/test_fasta.fasta"))
-exit()
-'''
-
-'''gen = os.listdir("/bmlfast/frimpong/shared_function_data/a3ms/")
-gen = set([i.split(".")[0] for i in gen])
-
-gen1 = os.listdir("/bmlfast/frimpong/shared_function_data/single_fastas2/")
-gen1 = set([i.split(".")[0] for i in gen1])
 
 
-
-diff = len(gen1.difference(gen))
-print(diff)
-
-
-exit()'''
-# generate_single_fastas()
-# exit()
-
-##### Generate for t3 #########
-# prefix="t3"
+##### Generate for test dataset #########
 # generate no known & limited known
-# generate(t1="t1", t2=prefix)
+generate(t1="t1", t2="t2")
 
 
-# generate test groundtruth
-# get_all_test_ground_truth(prefix)
 
-'''all_test = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/test_proteins".format(prefix))
+
+exit()
+
+all_test = pickle_load(CONSTANTS.ROOT_DIR + "test/{}/test_proteins".format(prefix))
 all_test = set([j for i in all_test for j in all_test[i]])
 
 
@@ -275,7 +282,7 @@ all_test1 = set([j for i in all_test1 for j in all_test1[i]])
 
 
 print(len(all_test.difference(all_test1)), len(all_test.intersection(all_test1)))
-get_fasta(all_test.difference(all_test1))'''
+get_fasta(all_test.difference(all_test1))
 
 
 
@@ -332,4 +339,4 @@ print(len(all_test))
 """
 
 
-create_test_dataset()
+# create_test_dataset()
