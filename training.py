@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import torch.nn.functional as F
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["WANDB_API_KEY"] = "b155b6571149501f01b9790e27f6ddac80ae09b3"
+os.environ["WANDB_API_KEY"] = ""
 os.environ["WANDB_MODE"] = "online"
 
 parser = argparse.ArgumentParser()
@@ -436,7 +436,6 @@ print("Ontology: {}, \n Learning rate: {}, Leraning rate scheduler: {}, \n Submo
       .format(args.ont, args.lr, hyps[args.submodel]['lr_scheduler'], args.submodel, args.group, args.train_batch, args.weight_decay, hyps[args.submodel]['weight_factor'], device, num2words(count_params(model)), full_term_indicies.shape, freq_term_indicies.shape, rare_term_indicies.shape))
 
 
-# lamb = torch.nn.Parameter(torch.tensor(2.0), requires_grad=True)
 for name, param in model.named_parameters():
    if param.requires_grad:
        print(name)
@@ -449,8 +448,6 @@ optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
 criterion = torch.nn.BCELoss(reduction='none')
-kl_loss = torch.nn.KLDivLoss(reduction="none")
-# criterion1 = DiceLoss()
 lr_scheduler = CosineAnnealingLR(optimizer, hyps[args.submodel]['lr_scheduler'])
 
 
