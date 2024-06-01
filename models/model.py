@@ -11,7 +11,7 @@ import math
 import CONSTANTS
 from torch.nn import LayerNorm, BatchNorm1d
 from collections import OrderedDict
-from torch_geometric.nn import GCNConv, TransformerConv, GATConv
+from torch_geometric.nn import GCNConv
 from torch_geometric.nn import GAE
 
 
@@ -151,24 +151,15 @@ class TFun_submodel(nn.Module):
 
 
 class LabelEncoder(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, features, gnn="GCN"):
+    def __init__(self, in_channels, out_channels, features):
         super(LabelEncoder, self).__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.features = features
 
-        if gnn == "GCN":
-            self.conv1 = GCNConv(self.in_channels, 2 * self.out_channels, cached=True)
-            self.conv2 = GCNConv(2 * self.out_channels, self.out_channels, cached=True) 
-        elif gnn == "GAT": 
-            self.conv1 = GATConv(self.in_channels, 2*self.out_channels, heads=1, concat=True)
-            self.conv2 = GATConv(2 * self.out_channels, self.out_channels, heads=1, concat=True) 
-        elif gnn == "TRANSFORMER":
-            self.conv1 = TransformerConv(in_channels, 2 * self.out_channels, 
-                                         heads=1, beta=True, concat=True)
-            self.conv2 = TransformerConv(2 * self.out_channels, self.out_channels, 
-                                         heads=1, beta=True, concat=True)
+        self.conv1 = GCNConv(self.in_channels, 2 * self.out_channels, cached=True)
+        self.conv2 = GCNConv(2 * self.out_channels, self.out_channels, cached=True)
 
         self.dropout = nn.Dropout(0.1)
         self.relu = nn.ReLU()
@@ -181,28 +172,9 @@ class LabelEncoder(torch.nn.Module):
         if self.features == 'biobert' or self.features == 'bert':
             x = self.bn(x)
             x = self.tanh(x)
-            # x = self.relu(x)
         elif self.features == 'x':
             x = self.relu(x)
         x = self.conv2(x, edge_index)
-        return x
-
-
-class Bilinear(nn.Module):
-
-    def __init__(self, feature_size, label_size=None, embedding_size=None):
-        super(Bilinear, self).__init__()
-
-        self.features_linear = nn.Linear(feature_size, 2000, bias=False)
-        self.labels_linear = nn.Linear(2957, 2000, bias=False)
-        self.final = nn.Linear(2957, 2957, bias=False)
-
-
-    def forward(self, feature_embedding, label_embedding):
-        x_1 = self.features_linear(feature_embedding)
-        x_2 = self.labels_linear(label_embedding)
-        x = torch.matmul(x_1, x_2.t())
-        x = self.final(x)
         return x
 
 
@@ -237,20 +209,9 @@ class Attention(nn.Module):
         attention = self.softmax(scores)
         values = torch.matmul(attention, v)
 
-
-        # print(torch.topk(attention, 7, dim=1)[0])
-        # print(torch.topk(attention, 7, dim=1, largest=False)[0])
-
-        # attention = self.sigmoid(scores)
-        # print(attention.shape)
-
-
-        #print(torch.topk(attention, 5, dim=1))
-        #print(torch.topk(attention, 5, dim=1, largest=False))
-
         sum_out = values + q
         proj_out = self.final(sum_out)
-        return proj_out, attention
+        return proj_out
 
 
 def scatter_accross(ont, shape, **kwargs):
@@ -268,32 +229,13 @@ def scatter_accross(ont, shape, **kwargs):
     des = des.scatter_(1, freq_indicies, kwargs['freq_scores'])
     des = des.scatter_(1, rare_indicies, kwargs['rare_scores'])
 
-
-    # add last bacth of biological process
+    # add last batch of biological process
     if ont == 'bp':
         rare_indicies_2 = kwargs['rare_indicies_2']
         rare_indicies_2 = rare_indicies_2.repeat(batch_size, 1)
         des = des.scatter_(1, rare_indicies_2, kwargs['rare_scores_2'])
 
     return des
-
-
-    '''
-    #   src = torch.rand(src.shape[0], src.shape[1], dtype=src.dtype, device=src.device)
-    tiled_indicies = indicies.repeat(shape[0], 1)
-    des = torch.zeros(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    # des = torch.ones(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    # des = torch.rand(shape[0], shape[1], dtype=src.dtype, device=src.device)
-    final = des.scatter_(1, tiled_indicies, src)'''
-    '''
-    print(final)
-    print(src.shape, tiled_indicies.shape)
-    x = torch.index_select(final, 1, indicies)
-    print(torch.all(x.eq(src)))
-    print(x)
-    print(src)
-    exit()
-    '''
 
 
 def load_submodel(ckp_pth, **kwargs):
@@ -314,7 +256,6 @@ class TFun(nn.Module):
         self.rare_indicies = kwargs['rare_indicies'].to(self.device)
         self.rare_indicies_2 =  kwargs['rare_indicies_2'].to(self.device) if  self.ont == 'bp' else None
         self.out_shape = getattr(config, "{}_out_shape".format(self.ont))
-        self.label_features = kwargs['label_features']
         self.dropout = nn.Dropout(0.1)
         self.dropout2 = nn.Dropout(0.1)
 
@@ -339,38 +280,15 @@ class TFun(nn.Module):
             kwargs['group'] = 'rare_2'
             self.esm_rare_mlp_2 = load_submodel(ckp_pth, **kwargs)
 
-
-        if self.label_features == 'biobert':
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
-                                          label_dimension=768,
-                                           embedding_size=256,
-                                           out_proj = self.out_shape)
-        elif self.label_features == 'x':
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
-                                           label_dimension=self.out_shape, # no of classes
-                                           embedding_size=256,
-                                           out_proj = self.out_shape)
-        elif self.label_features == 'gcn':
-            self.label_embedding = GAE(LabelEncoder(768, 1024, features='biobert'))
-            self.label_embedding = load_ckp(ckp_pth.format("label/GCN"), self.label_embedding, optimizer=None, lr_scheduler=None, best_model=True, model_only=True)
-            self.joint_embedding = Attention(concat_hidden=self.out_shape, 
-                                           label_dimension=1024, 
-                                           embedding_size=512 if self.ont == 'bp' else 256, #768,#2048,
-                                           out_proj = self.out_shape)
-        elif self.label_features == 'linear':
-            self.joint_embedding_1 = Attention(concat_hidden=self.out_shape, 
-                                            label_dimension=768,
-                                            embedding_size=128,
-                                            out_proj = self.out_shape)
-            
-            self.joint_embedding_2 = Attention(concat_hidden=self.out_shape, 
-                                            label_dimension=self.out_shape, # no of classes
-                                            embedding_size=128,
-                                            out_proj = self.out_shape)
-            self.final = nn.Linear(self.out_shape*2, self.out_shape)
+        self.label_embedding = GAE(LabelEncoder(768, 1024, features='biobert'))
+        self.label_embedding = load_ckp(ckp_pth.format("label/GCN"), self.label_embedding, optimizer=None, lr_scheduler=None, best_model=True, model_only=True)
+        self.joint_embedding = Attention(concat_hidden=self.out_shape, 
+                                        label_dimension=1024, 
+                                        embedding_size=256,
+                                        out_proj = self.out_shape)
+        
 
         self.graph_path = CONSTANTS.ROOT_DIR + '{}/graph.pt'.format(self.ont)
-        # self.label_embedd_data = torch.load(self.graph_path)
         self.label_embedd_data = torch.load(self.graph_path, map_location=torch.device(self.device))
     
         self.gelu = nn.GELU()
@@ -397,25 +315,9 @@ class TFun(nn.Module):
 
         x = scatter_accross(self.ont, self.out_shape, **extraargs)
 
-        if self.label_features == 'biobert':
-            z = self.label_embedd_data['biobert'].to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'x':
-            z = self.label_embedd_data['x'].to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'gcn':
-            z = self.label_embedding.encode(self.label_embedd_data['biobert'].to(self.device), 
-                                            self.label_embedd_data.edge_index.to(self.device)).to(self.device)
-            x, att = self.joint_embedding(x, z)
-        elif self.label_features == 'linear':
-            z_1 = self.label_embedd_data['biobert'].to(self.device)
-            z_2 = self.label_embedd_data['x'].to(self.device)
-            
-            x_1, att = self.joint_embedding_1(x, z_1)
-            x_2, att2 = self.joint_embedding_2(x, z_2)
-            x = torch.cat((x_1, x_2), 1)
-            x = self.final(x)
+        z = self.label_embedding.encode(self.label_embedd_data['biobert'].to(self.device), 
+                                        self.label_embedd_data.edge_index.to(self.device)).to(self.device)
+        x = self.joint_embedding(x, z)
 
         x = self.sigmoid(x)
-        # x = torch.index_select(x, 1, self.full_indicies)
-        return x, att
+        return x
