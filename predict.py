@@ -205,7 +205,7 @@ model.eval()
 results = {}
 for data in loader:
     _features, _proteins = data[:1], data[1]
-    output, _ = model(_features)
+    output = model(_features)
     output = torch.index_select(output, 1, full_term_indicies)
     output = output.tolist()
 
