@@ -15,6 +15,9 @@ cd TransFew/
 # download trained models and test sample
 https://calla.rnet.missouri.edu/rnaminer/tfew/TFewDataset
 
+# Unzip Dataset
+unzip TFewDataset
+
 
 # create conda environment
 conda env create -f transfew.yaml
