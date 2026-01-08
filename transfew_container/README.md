@@ -47,11 +47,13 @@ bash ./download_model.sh --cache-path /path/cache_folder
 ## &#128293; Building the Container
 The container should be built after all scripts have been generated/collected. 
 
-```bash
-# From the funbind_container directory, the build process will take approximately one hour to complete.
-docker build --network=host -t transfew_predictor .
 
-```
+- From the funbind_container directory, the build process will take approximately one hour to complete:
+`docker build --network=host -t transfew_predictor .`
+
+
+- Alternatively, pull from [Docker Hub](https://hub.docker.com/r/yw7bh/transfew_predictor):
+`docker pull yw7bh/transfew_predictor:latest`
 
 ## &#128293; Running the Container with Model Caching
 
