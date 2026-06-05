@@ -7,10 +7,12 @@ import torch
 from Utils import is_file, load_ckp, pickle_load
 import os
 import argparse
-from models.model import TFun
-from Dataset.MyDataset import PredictDataset
+from model import TFun
+from MyDataset import PredictDataset
+import gzip
 
 def write_output(results, terms, filepath, cutoff=0.001):
+    # with gzip.open(filepath, 'wt') as fp:
     with open(filepath, 'w') as fp:
         for prt in results:
             assert len(terms) == len(results[prt])
@@ -19,13 +21,13 @@ def write_output(results, terms, filepath, cutoff=0.001):
             for trm, score in tmp:
                 if score > cutoff:
                     fp.write('%s\t%s\t%0.3f\n' %  (prt, trm, score))
-
+    
 
 def generate_bulk_embedding(wd, fasta_path):
     # name model output dir, embedding layer 1, embedding layer 2, batch
     model = ("esm_2", "esm2_t48_15B_UR50D", fasta_path, "esm2_t48", 48, 100)
     CMD = "python -u {} {} {} {}/{} --repr_layers {} --include mean per_tok " \
-                    "--toks_per_batch {}".format("external/extract.py", model[1], model[2], \
+                    "--toks_per_batch {}".format("extract.py", model[1], model[2], \
                                                 wd, model[3], model[4], model[5])
     print(CMD)
     subprocess.call(CMD, shell=True, cwd="./")
@@ -104,7 +106,7 @@ def generate_embeddings(in_fasta, wd):
     if len(keys) > 0:
         SeqIO.write(sequences, cropped_fasta, "fasta")
         generate_bulk_embedding(wd, cropped_fasta)
-        merge_pts(keys, fasta_path, wd)
+        merge_pts(keys, in_fasta, wd)   
     else:
         generate_bulk_embedding(wd, in_fasta)
 
@@ -143,76 +145,89 @@ def get_term_indicies(ontology, device, data_path):
 
     return full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2
 
+def main():
+    parser = argparse.ArgumentParser(description=" Predict protein functions with TransFew ", epilog=" Thank you !!!")
+    parser.add_argument('--data-path', type=str, default="/root/.cache/torch/hub/checkpoints/TFewData", help="Path to data files (models)")
+    parser.add_argument('--working-dir', type=str, default=".", help="Path to generate temporary files")
+    parser.add_argument('--ontology', type=str, default="cc", help="Path to data files")
+    parser.add_argument('--no-cuda', default=False, help='Disables CUDA training.')
+    parser.add_argument('--batch-size', default=10, help='Batch size.')
+    parser.add_argument('--fasta-path', default="sequence.fasta", help='Path to Fasta')
+    parser.add_argument('--output', type=str, default="predictions.tsv", help="File to save output")
 
-parser = argparse.ArgumentParser(description=" Predict protein functions with TransFew ", epilog=" Thank you !!!")
-parser.add_argument('--data-path', type=str, default="", help="Path to data files (models)")
-parser.add_argument('--working-dir', type=str, default=".", help="Path to generate temporary files")
-parser.add_argument('--ontology', type=str, default="cc", help="Path to data files")
-parser.add_argument('--no-cuda', default=False, help='Disables CUDA training.')
-parser.add_argument('--batch-size', default=10, help='Batch size.')
-parser.add_argument('--fasta-path', default="sequence.fasta", help='Path to Fasta')
-parser.add_argument('--output', type=str, default="result.tsv", help="File to save output")
+    args = parser.parse_args()
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
 
-args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
-
-if args.cuda:
-    device = 'cuda:1'
-else:
-    device = 'cpu'
-
-
-fasta_path = args.fasta_path
-wd = args.working_dir
-ontology = args.ontology
-data_path = args.data_path
+    if args.cuda:
+        device = 'cuda:0'
+    else:
+        device = 'cpu'
 
 
-proteins = generate_embeddings(in_fasta=fasta_path, wd=wd)
+    fasta_path = args.fasta_path
+    wd = args.working_dir
+    ontology = args.ontology
+    data_path = args.data_path
 
-dataset = create_dataset(proteins, wd=wd)
+    if not os.path.exists(wd):
+        os.makedirs(wd, exist_ok=True)
 
-loader = torch.utils.data.DataLoader(dataset, batch_size=500, shuffle=False)
+    print(f"\n>>>>>>>> ✅Step I: Start extracting feature embeddings from the pretrained models! Results are saved in: {args.working_dir}/esm2_t48/.\n")    
+
+    proteins = generate_embeddings(in_fasta=fasta_path, wd=wd)
+
+    print(f"\n>>>>>>>> ✅Finished extracting feature embeddings from the pretrained models! Results are saved in: {args.working_dir}/esm2_t48/.\n")
+    dataset = create_dataset(proteins, wd=wd)
+
+    loader = torch.utils.data.DataLoader(dataset, batch_size=500, shuffle=False)
 
 
-sorted_terms = pickle_load(data_path+"/{}/sorted_terms".format(ontology))
-full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2 = \
-    get_term_indicies(ontology=ontology, device=device, data_path=data_path)
+    sorted_terms = pickle_load(data_path+"/{}/sorted_terms".format(ontology))
+    full_term_indicies, freq_term_indicies, rare_term_indicies, rare_term_indicies_2 = \
+        get_term_indicies(ontology=ontology, device=device, data_path=data_path)
 
-kwargs = {
-    'device': device,
-    'ont': ontology,
-    'full_indicies': full_term_indicies,
-    'freq_indicies': freq_term_indicies,
-    'rare_indicies': rare_term_indicies,
-    'rare_indicies_2': rare_term_indicies_2,
-    'sub_model': 'full',
-    'load_weights': True,
-    'label_features': 'gcn',
-    'group': ""
-}
+    kwargs = {
+        'device': device,
+        'ont': ontology,
+        'full_indicies': full_term_indicies,
+        'freq_indicies': freq_term_indicies,
+        'rare_indicies': rare_term_indicies,
+        'rare_indicies_2': rare_term_indicies_2,
+        'sub_model': 'full',
+        'load_weights': True,
+        'label_features': 'gcn',
+        'group': ""
+    }
 
-ckp_dir = data_path + '/{}/models/{}_{}/'.format(ontology, kwargs['sub_model'], kwargs['label_features'])
-ckp_pth = ckp_dir + "current_checkpoint.pt"
-model = TFun(**kwargs)
+    ckp_dir = data_path + '/{}/models/{}_{}/'.format(ontology, kwargs['sub_model'], kwargs['label_features'])
+    ckp_pth = ckp_dir + "current_checkpoint.pt"
+    model = TFun(**kwargs)
 
-# load model
-model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
+    # load model
+    model = load_ckp(checkpoint_dir=ckp_dir, model=model, best_model=False, model_only=True)
 
-model.to(device)
-model.eval()
+    model.to(device)
+    model.eval()
+    print(f">>>>>>>> ✅Step II: Running ontology-specific function prediction using Transfew.")
+    results = {}
+    for data in loader:
+        _features, _proteins = data[:1], data[1]
+        output = model(_features)
+        output = torch.index_select(output, 1, full_term_indicies)
+        output = output.tolist()
 
-results = {}
-for data in loader:
-    _features, _proteins = data[:1], data[1]
-    output = model(_features)
-    output = torch.index_select(output, 1, full_term_indicies)
-    output = output.tolist()
+        for i, j in zip(_proteins, output):
+            results[i] = j
+    print(f"******** ✅Completed ontology prediction with Transfew.")
+    
+    print(f"\n>>>>>>>> ✅Step III: Collecting prediction results from Transfew.")
+    terms = [sorted_terms[i] for i in full_term_indicies]
+    write_output(results, terms, "{}/{}".format(wd, args.output), cutoff=0.01)
+    print(f"======== ✅Saved prediction results for  at {wd}/{args.output}")
 
-    for i, j in zip(_proteins, output):
-        results[i] = j
+    print(f"\n✅✅✅✅ All predictions completed! ✅✅✅✅")
 
-terms = [sorted_terms[i] for i in full_term_indicies]
-write_output(results, terms, "{}/{}".format(wd, args.output), cutoff=0.01)
-
-            
+if __name__ == "__main__":
+    main()
+#### for docker container: $ python predict.py --fasta-path /workspace/sequence.fasta --ontology cc --working-dir ./result_cc  
+# for local machine: $ python predict.py --data-path  /bml/LAFA/checkpoints/TFewData  --fasta-path sequence.fasta --ontology cc --working-dir ./result_cc
