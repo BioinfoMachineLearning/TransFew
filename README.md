@@ -13,8 +13,10 @@ git clone https://github.com/BioinfoMachineLearning/TransFew.git
 cd TransFew/
 
 # download trained models and test sample
-The model weights and test samples can be downloaded at [zenodo](https://doi.org/10.5281/zenodo.22139108)
-### https://calla.rnet.missouri.edu/rnaminer/tfew/TFewDataset
+The model weights and test samples can be downloaded at zenodo: https://doi.org/10.5281/zenodo.22139108
+
+# Note: the bellow link does not work any more.
+https://calla.rnet.missouri.edu/rnaminer/tfew/TFewDataset
 
 # Unzip Dataset
 unzip TFewDataset
