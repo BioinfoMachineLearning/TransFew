@@ -15,7 +15,7 @@ cd TransFew/
 # download trained models and test sample
 The model weights and test samples can be downloaded at zenodo: https://doi.org/10.5281/zenodo.22139108
 
-# Note: the bellow link does not work any more.
+# Note: the bellow link does not work any more. Use the zenodo repository above instead.
 https://calla.rnet.missouri.edu/rnaminer/tfew/TFewDataset
 
 # Unzip Dataset
